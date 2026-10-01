@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banania National Bank | Sovereign Central System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 h-screen overflow-hidden flex font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+
+    <!-- SUPABASE CORE LOGIC -->
+    <script>
+        const SUPABASE_URL = 'https://rqxrpksjgxzcamkwvzyn.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxeHJwa3NqZ3h6Y2Fta3d2enluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODY4MTgsImV4cCI6MjEwNjM2MjgxOH0.a4su8LpHd6v1E-8j0jABfHA-9vOOldaUQBexzbPotOE';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        let currentUser = null;
+        let escrowWaitTime = 10;
+        let maxLoanLimit = 1000;
+
+        // --- NAVIGATION & VIEWS ---
+        function switchAuthTab(tab) {
+            document.getElementById('form-signin').classList.add('hidden');
+            document.getElementById('form-signup').classList.add('hidden');
+            document.getElementById('tab-signin').classList.remove('border-amber-500', 'text-amber-500');
+            document.getElementById('tab-signup').classList.remove('border-amber-500', 'text-amber-500');
+            
+            document.getElementById(`form-${tab}`).classList.remove('hidden');
+            document.getElementById(`tab-${tab}`).classList.add('border-amber-500', 'text-amber-500');
+        }
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.app-screen').forEach(el => el.classList.add('hidden'));
+            document.getElementById(screenId).classList.remove('hidden');
+        }
+
+        function showView(viewId) {
+            document.querySelectorAll('.dashboard-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        async function fetchSystemSettings() {
+            const { data } = await supabaseClient.from('bank_settings').select('*').eq('id', 1).single();
+            if(data) {
+                escrowWaitTime = data.escrow_minutes || 10;
+                maxLoanLimit = data.max_loan_limit || 1000;
+            }
+            if(document.getElementById('setting-escrow-time')) {
+                document.getElementById('setting-escrow-time').value = escrowWaitTime;
+                document.getElementById('setting-loan-limit').value = maxLoanLimit;
+            }
+        }
+
+        // --- AUTHENTICATION & ONBOARDING ---
+        async function login() {
+            const inputVal = document.getElementById('login-input').value.trim();
+            const pass = document.getElementById('login-pass').value;
+
+            if(!inputVal || !pass) return alert("System Error: Enter credentials.");
+
+            const { data, error } = await supabaseClient.from('citizens').select('*').or(`citizen_id.eq.${inputVal},phone.eq.${inputVal}`).eq('password', pass).single();
+
+            if (error || !data) return alert("ACCESS DENIED: Invalid Citizen Credentials.");
+
+            if (data.is_banned) {
+                document.getElementById('appeal-id').value = data.citizen_id;
+                showScreen('banned-screen');
+                return;
+            }
+
+            if (data.status === 'PENDING') return alert("NOTICE: Citizenship Application is currently under Central Review.");
+
+            currentUser = data;
+            await fetchSystemSettings();
+            
+            if (currentUser.role === 'ADMIN') {
+                document.getElementById('admin-nav-switcher').classList.remove('hidden');
+                loadAdminDashboard();
+                showScreen('admin-screen');
+                showView('admin-home');
+            } else {
+                loadCitizenDashboard();
+                showScreen('citizen-screen');
+                showView('cit-home');
+            }
+        }
+
+        function nextSignupStep() {
+            const fname = document.getElementById('signup-fullname').value.trim();
+            const reason = document.getElementById('signup-reason').value.trim();
+            if(!fname || !reason) return alert("Please complete legal identity information.");
+            
+            document.getElementById('signup-step-1').classList.add('hidden');
+            document.getElementById('signup-step-2').classList.remove('hidden');
+        }
+
+        async function signup() {
+            const rawNum = document.getElementById('signup-num').value.trim();
+            const username = document.getElementById('signup-username').value.trim();
+            const fullname = document.getElementById('signup-fullname').value.trim();
+            const reason = document.getElementById('signup-reason').value.trim();
+            const pass = document.getElementById('signup-pass').value;
+
+            if(!rawNum || !username || !pass || !fullname) return alert("Complete all required fields.");
+
+            const fullCitizenId = `BN-2026-${rawNum.padStart(3, '0')}`;
+
+            // Prevent Ban Evasion
+            const { data: bannedCheck } = await supabaseClient.from('citizens').select('is_banned').or(`phone.eq.${username},citizen_id.eq.${fullCitizenId}`).single();
+            if(bannedCheck && bannedCheck.is_banned) return alert("REGISTRATION BLOCKED: Entity is blacklisted from Banania National Bank.");
+
+            const { error } = await supabaseClient.from('citizens').insert([{
+                citizen_id: fullCitizenId, phone: username, full_name: fullname, reason: reason, password: pass, balance: 50, status: 'PENDING', role: 'CITIZEN'
+            }]);
+
+            if (error) {
+                alert("APPLICATION ERROR: Identifier or Username is already registered.");
+            } else {
+                alert("Application submitted. Central Command review pending.");
+                location.reload();
+            }
+        }
+
+        // --- CITIZEN VAULT & DEBT LOGIC ---
+        async function loadCitizenDashboard() {
+            document.getElementById('cit-name').innerText = currentUser.full_name;
+            document.getElementById('cit-id').innerText = currentUser.citizen_id;
+            
+            const { data } = await supabaseClient.from('citizens').select('balance').eq('citizen_id', currentUser.citizen_id).single();
+            currentUser.balance = parseFloat(data.balance);
+            
+            const balanceEl = document.getElementById('cit-balance');
+            balanceEl.innerText = currentUser.balance.toFixed(2);
+            
+            // Debt Warning & Lock
+            const debtWarning = document.getElementById('debt-warning');
+            const wireBtn = document.getElementById('wire-btn');
+            
+            if (currentUser.balance < 0) {
+                balanceEl.classList.remove('text-slate-100');
+                balanceEl.classList.add('text-red-500');
+                debtWarning.classList.remove('hidden');
+                wireBtn.disabled = true;
+                wireBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                wireBtn.innerText = "ACCOUNT IN DEFICIT - TRANSFERS DISABLED";
+            } else {
+                balanceEl.classList.remove('text-red-500');
+                balanceEl.classList.add('text-slate-100');
+                debtWarning.classList.add('hidden');
+                wireBtn.disabled = false;
+                wireBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                wireBtn.innerText = "AUTHORIZE WIRE TRANSFER";
+            }
+
+            loadCitizenTransactions();
+            loadCitizenLoans();
+            loadCitizenSupport();
+        }
+
+        async function sendMoney() {
+            if(currentUser.balance < 0) return alert("TRANSFERS BLOCKED: Account is in deficit.");
+
+            const receiverId = document.getElementById('send-to').value.trim();
+            const amount = parseFloat(document.getElementById('send-amount').value);
+
+            if (amount <= 0 || isNaN(amount)) return alert("Invalid transfer amount.");
+            if (amount > currentUser.balance) return alert("Insufficient cleared balance.");
+            if (receiverId === currentUser.citizen_id) return alert("Cannot wire funds to self.");
+
+            const { data: receiver } = await supabaseClient.from('citizens').select('citizen_id').eq('citizen_id', receiverId).single();
+            if(!receiver) return alert("Target Citizen ID not found.");
+
+            await supabaseClient.from('citizens').update({ balance: currentUser.balance - amount }).eq('citizen_id', currentUser.citizen_id);
+            await supabaseClient.from('transactions').insert([{
+                sender_id: currentUser.citizen_id, receiver_id: receiverId, amount: amount, note: "PENDING_ESCROW"
+            }]);
+
+            alert(`Transfer Initiated. Subject to ${escrowWaitTime}-minute sovereign escrow inspection.`);
+            document.getElementById('send-to').value = '';
+            document.getElementById('send-amount').value = '';
+            loadCitizenDashboard();
+        }
+
+        async function loadCitizenTransactions() {
+            const { data } = await supabaseClient.from('transactions').select('*').or(`sender_id.eq.${currentUser.citizen_id},receiver_id.eq.${currentUser.citizen_id}`).order('created_at', { ascending: false }).limit(10);
+            let html = "";
+            data.forEach(tx => {
+                const isSender = tx.sender_id === currentUser.citizen_id;
+                let status = tx.note === 'PENDING_ESCROW' ? '<span class="text-amber-500">ESCROW HOLD</span>' : '<span class="text-emerald-500">CLEARED</span>';
+                if(tx.note === 'TAX_DEDUCTION') status = '<span class="text-red-500">NATIONAL TAX</span>';
+                if(tx.note === 'REJECTED_REFUNDED') status = '<span class="text-red-400">REFUNDED</span>';
+                
+                html += `<div class="flex justify-between items-center border-b border-slate-800/80 py-2.5 text-xs font-mono">
+                    <div>
+                        <p class="text-slate-300 font-semibold">${isSender ? 'OUTBOUND ' + tx.receiver_id : 'INBOUND ' + tx.sender_id}</p>
+                        <p class="text-[10px] text-slate-500 mt-0.5">${status}</p>
+                    </div>
+                    <span class="${isSender ? 'text-slate-400' : 'text-emerald-400'} font-bold">${isSender ? '-' : '+'}Ɓ${tx.amount.toFixed(2)}</span>
+                </div>`;
+            });
+            document.getElementById('citizen-tx-history').innerHTML = html || "<p class='text-slate-600 text-xs py-4 font-mono'>NO RECORDED TRANSACTIONS</p>";
+        }
+
+        // --- LOAN SYSTEM ---
+        async function requestLoan() {
+            const amount = parseFloat(document.getElementById('loan-request-amount').value);
+            if (isNaN(amount) || amount <= 0) return alert("Invalid loan amount requested.");
+            if (amount > maxLoanLimit) return alert(`LOAN DENIED: Max loan cap is Ɓ${maxLoanLimit}`);
+
+            await supabaseClient.from('loans').insert([{
+                citizen_id: currentUser.citizen_id, amount: amount, status: 'PENDING'
+            }]);
+
+            alert("Sovereign Credit Application submitted for Central Command approval.");
+            document.getElementById('loan-request-amount').value = '';
+            loadCitizenLoans();
+        }
+
+        async function loadCitizenLoans() {
+            const { data } = await supabaseClient.from('loans').select('*').eq('citizen_id', currentUser.citizen_id).order('created_at', { ascending: false });
+            let html = "";
+            data.forEach(l => {
+                let badge = `<span class="text-amber-500">UNDER REVIEW</span>`;
+                if(l.status === 'APPROVED') badge = `<span class="text-emerald-500">ACTIVE CREDIT</span>`;
+                if(l.status === 'PAID') badge = `<span class="text-slate-500">SETTLED</span>`;
+                if(l.status === 'REJECTED') badge = `<span class="text-red-500">DECLINED</span>`;
+
+                html += `<div class="bg-slate-900 border border-slate-800 p-3 rounded mb-2 text-xs font-mono flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-slate-200">PRINCIPAL: Ɓ${l.amount.toFixed(2)}</p>
+                        <p class="text-[10px] text-slate-500 mt-1">STATUS: ${badge}</p>
+                    </div>
+                    ${l.status === 'APPROVED' ? `<button onclick="repayLoan(${l.id}, ${l.amount})" class="bg-emerald-600/20 border border-emerald-600 text-emerald-400 hover:bg-emerald-600 hover:text-white px-3 py-1 rounded text-[11px]">REPAY</button>` : ''}
+                </div>`;
+            });
+            document.getElementById('citizen-loans-list').innerHTML = html || "<p class='text-slate-600 text-xs py-2 font-mono'>NO ACTIVE CREDIT LINES</p>";
+        }
+
+        async function repayLoan(loanId, amount) {
+            if(currentUser.balance < amount) return alert("INSUFFICIENT FUNDS: Cannot settle credit liability.");
+            
+            await supabaseClient.from('citizens').update({ balance: currentUser.balance - amount }).eq('citizen_id', currentUser.citizen_id);
+            await supabaseClient.from('loans').update({ status: 'PAID' }).eq('id', loanId);
+            await supabaseClient.from('transactions').insert([{
+                sender_id: currentUser.citizen_id, receiver_id: 'BN-TREASURY', amount: amount, note: "LOAN_SETTLEMENT"
+            }]);
+
+            alert("Sovereign loan fully settled.");
+            loadCitizenDashboard();
+        }
+
+        // --- SUPPORT INBOX WITH ADMIN REPLIES ---
+        async function submitTicket(isAppeal = false) {
+            const citId = isAppeal ? document.getElementById('appeal-id').value : currentUser.citizen_id;
+            const msg = isAppeal ? document.getElementById('appeal-msg').value : document.getElementById('support-msg').value;
+            
+            if(!msg.trim()) return alert("Message cannot be empty.");
+            
+            await supabaseClient.from('support_tickets').insert([{
+                citizen_id: citId, message: msg, status: 'OPEN'
+            }]);
+            
+            alert("Inquiry transmitted to Central Command.");
+            if(isAppeal) location.reload();
+            else {
+                document.getElementById('support-msg').value = '';
+                loadCitizenSupport();
+            }
+        }
+
+        async function loadCitizenSupport() {
+            const { data } = await supabaseClient.from('support_tickets').select('*').eq('citizen_id', currentUser.citizen_id).order('created_at', { ascending: false });
+            let html = "";
+            data.forEach(t => {
+                html += `<div class="bg-slate-900 border border-slate-800 p-4 rounded mb-3 text-xs">
+                    <p class="text-slate-400 mb-2 font-mono">ID: SEC-TKT-${t.id}</p>
+                    <p class="text-slate-200 mb-3 bg-slate-950 p-2.5 rounded border border-slate-800/80">${t.message}</p>
+                    ${t.admin_reply ? `<div class="bg-amber-500/10 border border-amber-500/30 p-2.5 rounded mt-2">
+                        <p class="text-amber-400 font-bold font-mono text-[10px]">CENTRAL COMMAND RESPONSE:</p>
+                        <p class="text-amber-200 mt-1">${t.admin_reply}</p>
+                    </div>` : `<p class="text-slate-500 italic text-[11px]">Awaiting Administrative Response...</p>`}
+                </div>`;
+            });
+            document.getElementById('citizen-tickets-list').innerHTML = html || "<p class='text-slate-600 text-xs py-2 font-mono'>NO TICKET HISTORY</p>";
+        }
+
+        // --- CENTRAL COMMAND (ADMIN FUNCTIONS) ---
+        async function loadAdminDashboard() {
+            await checkAndAutoProcessEscrows();
+            const { data: citizens } = await supabaseClient.from('citizens').select('*').order('created_at', { ascending: false });
+            
+            let totalWealth = 0;
+            let directoryHtml = "";
+            let pendingHtml = "";
+
+            citizens.forEach(user => {
+                totalWealth += parseFloat(user.balance || 0);
+                const isBanned = user.is_banned;
+                
+                if (user.status === 'PENDING') {
+                    pendingHtml += `<div class="bg-slate-900 border border-slate-800 p-3 rounded mb-2 text-xs">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold text-amber-500">${user.full_name} <span class="text-slate-400">(@${user.phone})</span></h3>
+                                <p class="text-[11px] text-slate-400 mt-1 font-mono">REQ ID: ${user.citizen_id}</p>
+                                <p class="text-slate-400 mt-1">Purpose: ${user.reason || 'N/A'}</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="updateStatus('${user.citizen_id}', 'ACTIVE')" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white font-bold text-[11px]">Approve</button>
+                                <button onclick="deleteUser('${user.citizen_id}')" class="bg-red-950/80 border border-red-800 hover:bg-red-900 text-red-400 px-3 py-1 rounded text-[11px]">Delete Application</button>
+                            </div>
+                        </div>
+                    </div>`;
+                } else {
+                    directoryHtml += `<tr class="border-b border-slate-800 text-xs font-mono">
+                        <td class="py-2.5 px-3 text-slate-400">${user.citizen_id}</td>
+                        <td class="py-2.5 px-3 ${isBanned ? 'text-red-500 line-through' : 'text-slate-200'} font-sans font-semibold">${user.full_name}</td>
+                        <td class="py-2.5 px-3 ${user.balance < 0 ? 'text-red-500 font-bold' : 'text-emerald-400'}">Ɓ${parseFloat(user.balance).toFixed(2)}</td>
+                        <td class="py-2.5 px-3 flex gap-2">
+                            ${isBanned 
+                                ? `<button onclick="toggleBan('${user.citizen_id}', false)" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 px-2 py-1 rounded text-slate-200">Unban</button>`
+                                : `<button onclick="toggleBan('${user.citizen_id}', true)" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 px-2 py-1 rounded">Ban Entity</button>`
+                            }
+                        </td>
+                    </tr>`;
+                }
+            });
+
+            document.getElementById('admin-directory').innerHTML = directoryHtml;
+            document.getElementById('admin-pending').innerHTML = pendingHtml || '<p class="text-slate-600 text-xs font-mono">NO PENDING APPLICATIONS</p>';
+            document.getElementById('total-wealth').innerText = totalWealth.toFixed(2);
+            
+            loadAdminLoans();
+            loadAdminPendingEscrows();
+            loadAdminSupportTickets();
+        }
+
+        async function updateStatus(id, status) {
+            await supabaseClient.from('citizens').update({ status: status }).eq('citizen_id', id);
+            loadAdminDashboard();
+        }
+
+        async function deleteUser(id) {
+            if(confirm("Confirm: Permanently delete citizenship application?")) {
+                await supabaseClient.from('citizens').delete().eq('citizen_id', id);
+                loadAdminDashboard();
+            }
+        }
+
+        async function toggleBan(id, banState) {
+            if(confirm(`Confirm: ${banState ? 'REVOKE CITIZENSHIP & BAN' : 'RESTORE ACCESS FOR'} ${id}?`)) {
+                await supabaseClient.from('citizens').update({ is_banned: banState }).eq('citizen_id', id);
+                loadAdminDashboard();
+            }
+        }
+
+        // TAXATION SYSTEM
+        async function executeIndividualTax() {
+            const targetId = document.getElementById('tax-target-id').value.trim();
+            const taxAmount = parseFloat(document.getElementById('tax-amount').value);
+
+            if(!targetId || isNaN(taxAmount) || taxAmount <= 0) return alert("Invalid tax input parameters.");
+
+            const { data: target } = await supabaseClient.from('citizens').select('balance').eq('citizen_id', targetId).single();
+            if(!target) return alert("Citizen ID not located.");
+
+            const newBal = parseFloat(target.balance) - taxAmount;
+            await supabaseClient.from('citizens').update({ balance: newBal }).eq('citizen_id', targetId);
+            await supabaseClient.from('transactions').insert([{
+                sender_id: targetId, receiver_id: 'BN-NATIONAL-TREASURY', amount: taxAmount, note: "TAX_DEDUCTION"
+            }]);
+
+            alert(`SOVEREIGN TAX EXECUTED: Ɓ${taxAmount} deducted from ${targetId}. Balance now: Ɓ${newBal.toFixed(2)}`);
+            document.getElementById('tax-target-id').value = '';
+            document.getElementById('tax-amount').value = '';
+            loadAdminDashboard();
+        }
+
+        async function executeMassTax() {
+            const flatTax = parseFloat(document.getElementById('mass-tax-amount').value);
+            if(isNaN(flatTax) || flatTax <= 0) return alert("Invalid mass tax rate.");
+            if(!confirm(`WARNING: DEDUCTING Ɓ${flatTax} FROM ALL ACTIVE CITIZENS. MAY CAUSE DEFICITS. PROCEED?`)) return;
+
+            const { data: citizens } = await supabaseClient.from('citizens').select('citizen_id, balance').eq('status', 'ACTIVE').eq('is_banned', false);
+            
+            for (let user of citizens) {
+                const updatedBal = parseFloat(user.balance) - flatTax;
+                await supabaseClient.from('citizens').update({ balance: updatedBal }).eq('citizen_id', user.citizen_id);
+                await supabaseClient.from('transactions').insert([{
+                    sender_id: user.citizen_id, receiver_id: 'BN-NATIONAL-TREASURY', amount: flatTax, note: "TAX_DEDUCTION"
+                }]);
+            }
+            alert(`SOVEREIGN LEVY COMPLETE: Ɓ${flatTax} deducted across all citizens.`);
+            document.getElementById('mass-tax-amount').value = '';
+            loadAdminDashboard();
+        }
+
+        // MINT CURRENCY & MASS PAYOUT
+        async function mintCurrency() {
+            const targetId = document.getElementById('mint-target-id').value.trim();
+            const mintAmount = parseFloat(document.getElementById('mint-amount').value);
+
+            if(!targetId || isNaN(mintAmount) || mintAmount <= 0) return alert("Invalid mint parameters.");
+
+            const { data: target } = await supabaseClient.from('citizens').select('balance').eq('citizen_id', targetId).single();
+            if(!target) return alert("Target account not located.");
+
+            await supabaseClient.from('citizens').update({ balance: parseFloat(target.balance) + mintAmount }).eq('citizen_id', targetId);
+            await supabaseClient.from('transactions').insert([{
+                sender_id: 'CENTRAL-MINT', receiver_id: targetId, amount: mintAmount, note: "SOVEREIGN_MINT"
+            }]);
+
+            alert(`MINT EXECUTED: Ɓ${mintAmount} minted directly into account ${targetId}.`);
+            document.getElementById('mint-target-id').value = '';
+            document.getElementById('mint-amount').value = '';
+            loadAdminDashboard();
+        }
+
+        async function massPayout() {
+            const amount = parseFloat(document.getElementById('mass-payout-amount').value);
+            if(isNaN(amount) || amount <= 0) return alert("Invalid payout amount.");
+            if(!confirm(`AUTHORIZE PAYROLL: Distribute Ɓ${amount} to EVERY unbanned citizen?`)) return;
+
+            const { data: citizens } = await supabaseClient.from('citizens').select('citizen_id, balance').eq('status', 'ACTIVE').eq('is_banned', false);
+            
+            for (let user of citizens) {
+                await supabaseClient.from('citizens').update({ balance: parseFloat(user.balance) + amount }).eq('citizen_id', user.citizen_id);
+                await supabaseClient.from('transactions').insert([{
+                    sender_id: 'BN-NATIONAL-TREASURY', receiver_id: user.citizen_id, amount: amount, note: "UNIVERSAL_STIMULUS"
+                }]);
+            }
+            alert(`MASS PAYOUT COMPLETE: Ɓ${amount} credited to all citizens.`);
+            document.getElementById('mass-payout-amount').value = '';
+            loadAdminDashboard();
+        }
+
+        // ADMIN LOANS REVIEW
+        async function loadAdminLoans() {
+            const { data } = await supabaseClient.from('loans').select('*').eq('status', 'PENDING');
+            let html = "";
+            data.forEach(l => {
+                html += `<div class="flex justify-between items-center border border-slate-800 bg-slate-900 p-3 rounded mb-2 text-xs font-mono">
+                    <div>
+                        <span class="font-bold text-amber-500">Ɓ${l.amount.toFixed(2)}</span> requested by <span class="text-slate-200 font-bold">${l.citizen_id}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="approveLoan(${l.id}, '${l.citizen_id}', ${l.amount})" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white font-bold">Approve Credit</button>
+                        <button onclick="rejectLoan(${l.id})" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 px-3 py-1 rounded">Reject</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('admin-loans-list').innerHTML = html || "<p class='text-slate-600 text-xs font-mono'>NO PENDING CREDIT APPLICATIONS</p>";
+        }
+
+        async function approveLoan(loanId, citId, amount) {
+            const { data: cit } = await supabaseClient.from('citizens').select('balance').eq('citizen_id', citId).single();
+            await supabaseClient.from('citizens').update({ balance: parseFloat(cit.balance) + amount }).eq('citizen_id', citId);
+            await supabaseClient.from('loans').update({ status: 'APPROVED' }).eq('id', loanId);
+            await supabaseClient.from('transactions').insert([{
+                sender_id: 'BN-SOVEREIGN-CREDIT', receiver_id: citId, amount: amount, note: "LOAN_DISBURSEMENT"
+            }]);
+            alert("SOVEREIGN CREDIT DISBURSED.");
+            loadAdminDashboard();
+        }
+
+        async function rejectLoan(loanId) {
+            await supabaseClient.from('loans').update({ status: 'REJECTED' }).eq('id', loanId);
+            loadAdminDashboard();
+        }
+
+        // ADMIN ESCROW
+        async function loadAdminPendingEscrows() {
+            const { data } = await supabaseClient.from('transactions').select('*').eq('note', 'PENDING_ESCROW');
+            let html = "";
+            data.forEach(tx => {
+                html += `<div class="flex justify-between items-center border border-slate-800 bg-slate-900 p-3 rounded mb-2 text-xs font-mono">
+                    <div>
+                        <span class="font-bold text-amber-500">Ɓ${tx.amount.toFixed(2)}</span> 
+                        <span class="text-slate-500">from</span> ${tx.sender_id} 
+                        <span class="text-slate-500">to</span> ${tx.receiver_id}
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="resolveEscrow(${tx.id}, true, '${tx.receiver_id}', ${tx.amount})" class="bg-emerald-600 hover:bg-emerald-500 px-3 py-1 rounded text-white font-bold">Release</button>
+                        <button onclick="resolveEscrow(${tx.id}, false, '${tx.sender_id}', ${tx.amount})" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 px-3 py-1 rounded">Refund</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('admin-escrow-list').innerHTML = html || "<p class='text-slate-600 text-xs font-mono'>ESCROW QUEUE CLEAR</p>";
+        }
+
+        async function resolveEscrow(txId, isApproved, targetId, amount) {
+            if(isApproved) {
+                const { data: receiver } = await supabaseClient.from('citizens').select('balance').eq('citizen_id', targetId).single();
+                await supabaseClient.from('citizens').update({ balance: parseFloat(receiver.balance) + amount }).eq('citizen_id', targetId);
+                await supabaseClient.from('transactions').update({ note: 'COMPLETED' }).eq('id', txId);
+            } else {
+                const { data: sender } = await supabaseClient.from('citizens').select('balance').eq('citizen_id', targetId).single();
+                await supabaseClient.from('citizens').update({ balance: parseFloat(sender.balance) + amount }).eq('citizen_id', targetId);
+                await supabaseClient.from('transactions').update({ note: 'REJECTED_REFUNDED' }).eq('id', txId);
+            }
+            loadAdminDashboard();
+        }
+
+        async function checkAndAutoProcessEscrows() {
+            const { data } = await supabaseClient.from('transactions').select('*').eq('note', 'PENDING_ESCROW');
+            if(!data) return;
+            const now = new Date();
+            for(let tx of data) {
+                const txTime = new Date(tx.created_at);
+                const diffMinutes = (now - txTime) / (1000 * 60);
+                if(diffMinutes >= escrowWaitTime) {
+                    const { data: receiver } = await supabaseClient.from('citizens').select('balance').eq('citizen_id', tx.receiver_id).single();
+                    await supabaseClient.from('citizens').update({ balance: parseFloat(receiver.balance) + tx.amount }).eq('citizen_id', tx.receiver_id);
+                    await supabaseClient.from('transactions').update({ note: 'AUTO_CLEARED' }).eq('id', tx.id);
+                }
+            }
+        }
+
+        // ADMIN SUPPORT & REPLIES
+        async function loadAdminSupportTickets() {
+            const { data } = await supabaseClient.from('support_tickets').select('*').order('created_at', { ascending: false });
+            let html = "";
+            data.forEach(t => {
+                html += `<div class="bg-slate-900 border border-slate-800 p-4 rounded mb-3 text-xs">
+                    <div class="flex justify-between font-mono mb-2">
+                        <span class="font-bold text-amber-500">CITIZEN: ${t.citizen_id}</span>
+                        <span class="text-slate-500">TKT-${t.id}</span>
+                    </div>
+                    <p class="text-slate-200 mb-3 bg-slate-950 p-2.5 rounded border border-slate-800/80">${t.message}</p>
+                    ${t.admin_reply ? `<p class="text-emerald-400 font-mono text-[11px] mb-2">REPLIED: ${t.admin_reply}</p>` : `
+                        <div class="flex gap-2">
+                            <input id="reply-input-${t.id}" type="text" placeholder="Type official response..." class="flex-1 bg-slate-950 border border-slate-700 rounded px-3 py-1.5 text-white focus:outline-none focus:border-amber-500">
+                            <button onclick="sendAdminReply(${t.id})" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded">Transmit Reply</button>
+                        </div>
+                    `}
+                </div>`;
+            });
+            document.getElementById('admin-tickets-list').innerHTML = html || "<p class='text-slate-600 text-xs font-mono'>SUPPORT QUEUE CLEAR</p>";
+        }
+
+        async function sendAdminReply(ticketId) {
+            const replyMsg = document.getElementById(`reply-input-${ticketId}`).value.trim();
+            if(!replyMsg) return alert("Reply text required.");
+            
+            await supabaseClient.from('support_tickets').update({ admin_reply: replyMsg, status: 'RESOLVED' }).eq('id', ticketId);
+            loadAdminSupportTickets();
+        }
+
+        async function saveSystemSettings() {
+            const newEscrow = parseInt(document.getElementById('setting-escrow-time').value);
+            const newLoanCap = parseFloat(document.getElementById('setting-loan-limit').value);
+            
+            if(isNaN(newEscrow) || isNaN(newLoanCap)) return alert("Invalid settings parameters.");
+            
+            await supabaseClient.from('bank_settings').update({ escrow_minutes: newEscrow, max_loan_limit: newLoanCap }).eq('id', 1);
+            escrowWaitTime = newEscrow;
+            maxLoanLimit = newLoanCap;
+            alert("SOVEREIGN BANK CONFIGURATION UPDATED.");
+        }
+
+        function switchToPersonalVault() {
+            loadCitizenDashboard();
+            showScreen('citizen-screen');
+            showView('cit-home');
+        }
+    </script>
+
+    <!-- AUTHENTICATION SCREEN -->
+    <div id="auth-screen" class="app-screen w-full h-full flex items-center justify-center bg-slate-950 p-4 overflow-y-auto">
+        <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-none shadow-2xl p-8 my-auto">
+            
+            <div class="flex flex-col items-center mb-8 border-b border-slate-800 pb-6">
+                <div class="w-12 h-12 bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-2xl font-mono text-amber-500 mb-3">
+                    BNB
+                </div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-100 uppercase font-mono">Banania National Bank</h1>
+                <p class="text-[10px] text-amber-500 tracking-widest uppercase font-mono mt-1">Sovereign Financial Portal</p>
+            </div>
+
+            <div class="flex border-b border-slate-800 mb-6 font-mono text-xs">
+                <button id="tab-signin" onclick="switchAuthTab('signin')" class="w-1/2 py-2.5 text-center border-b-2 border-amber-500 text-amber-500 transition font-bold">SIGN IN</button>
+                <button id="tab-signup" onclick="switchAuthTab('signup')" class="w-1/2 py-2.5 text-center border-b-2 border-transparent text-slate-500 hover:text-slate-300 transition font-bold">APPLY FOR ACCOUNT</button>
+            </div>
+
+            <!-- Sign In Form -->
+            <div id="form-signin" class="space-y-4">
+                <div>
+                    <label class="block text-[11px] font-mono text-slate-400 mb-1.5 uppercase">Citizen ID or Username</label>
+                    <input id="login-input" type="text" class="w-full bg-slate-950 border border-slate-800 rounded px-3.5 py-2.5 text-slate-100 focus:outline-none focus:border-amber-500 transition font-mono text-sm">
+                </div>
+                <div>
+                    <label class="block text-[11px] font-mono text-slate-400 mb-1.5 uppercase">Password</label>
+                    <input id="login-pass" type="password" class="w-full bg-slate-950 border border-slate-800 rounded px-3.5 py-2.5 text-slate-100 focus:outline-none focus:border-amber-500 transition font-mono text-sm">
+                </div>
+                <button onclick="login()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded py-3 text-xs tracking-wider uppercase font-mono transition mt-2">Enter Vault</button>
+            </div>
+
+            <!-- Sign Up Form -->
+            <div id="form-signup" class="hidden space-y-4">
+                <div id="signup-step-1">
+                    <div class="bg-slate-950 border border-slate-800 p-3 mb-4 rounded">
+                        <p class="text-[11px] text-slate-400 font-mono leading-relaxed">SOVEREIGN BRIEFING: Account registration requires official verification by Central Command.</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1 uppercase">Legal Full Name</label>
+                            <input id="signup-fullname" type="text" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-500 text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-mono text-slate-400 mb-1 uppercase">Purpose of Entry</label>
+                            <input id="signup-reason" type="text" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-500 text-sm">
+                        </div>
+                        <button onclick="nextSignupStep()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-100 font-bold rounded py-2.5 text-xs font-mono uppercase tracking-wider transition">Proceed to Security Credentials</button>
+                    </div>
+                </div>
+
+                <div id="signup-step-2" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-mono text-slate-400 mb-1 uppercase">Desired Citizen ID Tag</label>
+                        <div class="flex">
+                            <span class="bg-slate-800 border border-slate-700 border-r-0 rounded-l px-3 py-2 text-slate-400 text-xs font-mono flex items-center">BN-2026-</span>
+                            <input id="signup-num" type="text" class="w-full bg-slate-950 border border-slate-800 rounded-r px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-500 text-sm font-mono">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-mono text-slate-400 mb-1 uppercase">Username</label>
+                        <input id="signup-username" type="text" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-500 text-sm font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-mono text-slate-400 mb-1 uppercase">Security Password</label>
+                        <input id="signup-pass" type="password" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-100 focus:outline-none focus:border-amber-500 text-sm font-mono">
+                    </div>
+                    <button onclick="signup()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded py-3 text-xs font-mono uppercase tracking-wider transition">Submit Citizenship Application</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BANNED SCREEN -->
+    <div id="banned-screen" class="app-screen hidden w-full h-full flex items-center justify-center bg-slate-950 p-4">
+        <div class="w-full max-w-md bg-red-950/20 border border-red-900 rounded p-8 text-center">
+            <h2 class="text-xl font-bold font-mono text-red-500 tracking-widest uppercase mb-2">ACCESS REVOKED — BANNED</h2>
+            <p class="text-slate-400 text-xs mb-6 font-mono">Your entity has been blacklisted from the Realm. Assets are frozen in state treasury.</p>
+            <input id="appeal-id" type="hidden">
+            <textarea id="appeal-msg" placeholder="State your formal appeal to Central Command..." class="w-full bg-slate-950 border border-red-900/50 rounded p-3 text-xs text-slate-200 mb-4 h-24 focus:outline-none focus:border-red-500 font-sans"></textarea>
+            <div class="flex gap-2 font-mono text-xs">
+                <button onclick="submitTicket(true)" class="w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded py-2.5 font-bold">Transmit Appeal</button>
+                <button onclick="location.reload()" class="w-1/2 bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 rounded py-2.5 font-bold">Disconnect</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CITIZEN PORTAL LAYOUT -->
+    <div id="citizen-screen" class="app-screen hidden w-full h-full flex bg-slate-950">
+        <!-- Sidebar -->
+        <div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
+            <div class="p-5 border-b border-slate-800 flex items-center gap-3">
+                <div class="w-7 h-7 bg-amber-500/10 border border-amber-500/30 flex items-center justify-center font-mono text-amber-500 font-bold text-xs">BNB</div>
+                <span class="font-mono font-bold text-slate-100 text-xs tracking-wider uppercase">Vault Portal</span>
+            </div>
+            <nav class="flex-1 p-3 space-y-1 font-mono text-xs">
+                <button onclick="showView('cit-home')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">SOVEREIGN VAULT</button>
+                <button onclick="showView('cit-loans')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">LOANS & CREDIT</button>
+                <button onclick="showView('cit-support')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">BANK SUPPORT</button>
+                <button id="admin-nav-switcher" onclick="showScreen('admin-screen')" class="hidden w-full text-left px-3 py-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold mt-4">CENTRAL COMMAND →</button>
+            </nav>
+            <div class="p-3 border-t border-slate-800 font-mono text-xs">
+                <button onclick="location.reload()" class="w-full text-left px-3 py-2 text-red-400 hover:text-red-300">DISCONNECT</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto p-8">
+            <div id="cit-home" class="dashboard-view max-w-4xl mx-auto space-y-6">
+                <div class="flex justify-between items-end mb-6 border-b border-slate-800 pb-4">
+                    <div>
+                        <h1 class="text-2xl font-bold text-slate-100 font-sans"><span id="cit-name" class="text-amber-500"></span></h1>
+                        <p class="text-slate-500 font-mono text-xs mt-0.5">CITIZEN TAG: <span id="cit-id" class="text-slate-300"></span></p>
+                    </div>
+                </div>
+
+                <!-- Debt Alert Banner -->
+                <div id="debt-warning" class="hidden bg-red-950/40 border border-red-800 p-4 rounded text-xs font-mono text-red-400 mb-4">
+                    WARNING: Your account is in financial deficit. Outbound wire transfers are locked until clear balance is restored.
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="col-span-1 lg:col-span-2 space-y-6">
+                        <!-- Balance Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded p-6 relative overflow-hidden">
+                            <p class="text-slate-400 font-mono text-xs uppercase tracking-wider mb-2">Available Sovereign Balance</p>
+                            <p class="text-4xl font-bold font-mono">Ɓ <span id="cit-balance">0.00</span></p>
+                        </div>
+                        
+                        <!-- Transfer Card -->
+                        <div class="bg-slate-900 border border-slate-800 rounded p-6">
+                            <h2 class="text-sm font-mono font-bold text-slate-200 uppercase mb-4">Execute Wire Transfer</h2>
+                            <div class="grid grid-cols-2 gap-4 mb-4 font-mono text-xs">
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Target ID Tag</label>
+                                    <input id="send-to" type="text" placeholder="BN-2026-..." class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-100 focus:border-amber-500 outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-400 mb-1">Transfer Amount (Ɓ)</label>
+                                    <input id="send-amount" type="number" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-100 focus:border-amber-500 outline-none">
+                                </div>
+                            </div>
+                            <button id="wire-btn" onclick="sendMoney()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold rounded py-2.5 text-xs font-mono uppercase tracking-wider transition">Authorize Wire Transfer</button>
+                        </div>
+                    </div>
+
+                    <!-- Ledger History -->
+                    <div class="bg-slate-900 border border-slate-800 rounded p-6">
+                        <h2 class="text-xs font-mono font-bold text-slate-200 border-b border-slate-800 pb-3 mb-3 uppercase">Sovereign Ledger</h2>
+                        <div id="citizen-tx-history" class="space-y-1 max-h-96 overflow-y-auto hide-scrollbar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOANS VIEW -->
+            <div id="cit-loans" class="dashboard-view hidden max-w-2xl mx-auto space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold font-mono text-slate-100 uppercase">Sovereign Credit & Loans</h2>
+                    <p class="text-slate-400 text-xs font-mono mt-1">Apply for official state-backed credit lines.</p>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded space-y-4">
+                    <div>
+                        <label class="block text-xs font-mono text-slate-400 mb-1 uppercase">Requested Loan Amount (Ɓ)</label>
+                        <input id="loan-request-amount" type="number" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-slate-100 font-mono text-sm focus:border-amber-500 outline-none">
+                    </div>
+                    <button onclick="requestLoan()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded py-2.5 text-xs font-mono uppercase transition">Submit Loan Application</button>
+                </div>
+
+                <div>
+                    <h3 class="text-xs font-mono font-bold text-slate-300 uppercase mb-3">Credit History</h3>
+                    <div id="citizen-loans-list"></div>
+                </div>
+            </div>
+
+            <!-- SUPPORT VIEW -->
+            <div id="cit-support" class="dashboard-view hidden max-w-2xl mx-auto space-y-6">
+                <div>
+                    <h2 class="text-xl font-bold font-mono text-slate-100 uppercase">Bank Support Center</h2>
+                    <p class="text-slate-400 text-xs font-mono mt-1">Direct communication portal with Central Command.</p>
+                </div>
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded space-y-4">
+                    <textarea id="support-msg" class="w-full bg-slate-950 border border-slate-800 rounded p-3 text-xs text-slate-100 h-32 focus:outline-none focus:border-amber-500 placeholder-slate-600 font-sans" placeholder="State your inquiry or request..."></textarea>
+                    <button onclick="submitTicket()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded px-6 py-2.5 text-xs font-mono uppercase transition">Transmit Inquiry</button>
+                </div>
+                <div>
+                    <h3 class="text-xs font-mono font-bold text-slate-300 uppercase mb-3">Support History</h3>
+                    <div id="citizen-tickets-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN PORTAL LAYOUT -->
+    <div id="admin-screen" class="app-screen hidden w-full h-full flex bg-slate-950">
+        <!-- Sidebar -->
+        <div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col">
+            <div class="p-5 border-b border-slate-800 flex items-center gap-3">
+                <div class="w-7 h-7 bg-amber-500 text-slate-950 font-bold flex items-center justify-center font-mono text-xs">CMD</div>
+                <span class="font-mono font-bold text-slate-100 text-xs tracking-wider uppercase">Central Command</span>
+            </div>
+            <nav class="flex-1 p-3 space-y-1 font-mono text-xs">
+                <button onclick="showView('admin-home')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">OVERVIEW</button>
+                <button onclick="showView('admin-registry')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">CITIZEN DIRECTORY</button>
+                <button onclick="showView('admin-tax')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">SOVEREIGN TAXATION</button>
+                <button onclick="showView('admin-mint')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">CURRENCY MINTING</button>
+                <button onclick="showView('admin-loans')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">LOAN APPLICATIONS</button>
+                <button onclick="showView('admin-escrow')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">ESCROW QUEUE</button>
+                <button onclick="showView('admin-support')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">SUPPORT INBOX</button>
+                <button onclick="showView('admin-settings')" class="w-full text-left px-3 py-2.5 rounded hover:bg-slate-800 text-slate-300 font-medium">SYSTEM CONFIG</button>
+                <button onclick="switchToPersonalVault()" class="w-full text-left px-3 py-2.5 rounded bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold mt-4 font-mono">← PERSONAL VAULT</button>
+            </nav>
+            <div class="p-3 border-t border-slate-800 font-mono text-xs">
+                <button onclick="location.reload()" class="w-full text-left px-3 py-2 text-red-400 hover:text-red-300">DISCONNECT</button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto p-8">
+            
+            <div id="admin-home" class="dashboard-view space-y-6">
+                <h1 class="text-xl font-bold font-mono text-slate-100 uppercase">Central Command Dashboard</h1>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-slate-900 border border-slate-800 rounded p-6">
+                        <p class="text-slate-400 text-xs font-mono uppercase">Total Realm Money Supply</p>
+                        <p class="text-3xl font-mono text-amber-500 font-bold mt-2">Ɓ <span id="total-wealth">0.00</span></p>
+                    </div>
+                    <div class="bg-slate-900 border border-slate-800 rounded p-6">
+                        <h2 class="text-xs font-mono font-bold text-slate-200 uppercase mb-4">Pending Citizenship Applications</h2>
+                        <div id="admin-pending" class="max-h-64 overflow-y-auto hide-scrollbar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="admin-registry" class="dashboard-view hidden">
+                <h1 class="text-xl font-bold font-mono text-slate-100 uppercase mb-6">Citizen Directory</h1>
+                <div class="bg-slate-900 border border-slate-800 rounded overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-800/80 text-slate-400 font-mono text-[11px] uppercase border-b border-slate-800">
+                            <tr>
+                                <th class="py-3 px-4">Citizen ID</th>
+                                <th class="py-3 px-4">Legal Name</th>
+                                <th class="py-3 px-4">Balance</th>
+                                <th class="py-3 px-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-directory"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAXATION TAB -->
+            <div id="admin-tax" class="dashboard-view hidden space-y-6 max-w-2xl">
+                <h1 class="text-xl font-bold font-mono text-slate-100 uppercase">Sovereign Taxation Console</h1>
+                <div class="bg-slate-900 border border-slate-800 rounded p-6 space-y-4">
+                    <h2 class="text-xs font-mono font-bold text-amber-500 uppercase">Individual Tax Levy</h2>
+                    <div class="grid grid-cols-2 gap-4 font-mono text-xs">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Citizen ID Tag</label>
+                            <input id="tax-target-id" type="text" placeholder="BN-2026-..." class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Tax Amount (Ɓ)</label>
+                            <input id="tax-amount" type="number" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white">
+                        </div>
+                    </div>
+                    <button onclick="executeIndividualTax()" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 font-mono font-bold text-xs px-4 py-2 rounded">Execute Individual Tax</button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded p-6 space-y-4">
+                    <h2 class="text-xs font-mono font-bold text-amber-500 uppercase">Realm Flat Tax (Mass Levy)</h2>
+                    <div class="font-mono text-xs">
+                        <label class="block text-slate-400 mb-1">Flat Tax per Citizen (Ɓ)</label>
+                        <input id="mass-tax-amount" type="number" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white">
+                    </div>
+                    <button onclick="executeMassTax()" class="bg-red-950 border border-red-800 text-red-400 hover:bg-red-900 font-mono font-bold text-xs px-4 py-2 rounded">Execute Mass Tax Levy</button>
+                </div>
+            </div>
+
+            <!-- MINT & PAYROLL TAB -->
+            <div id="admin-mint" class="dashboard-view hidden space-y-6 max-w-2xl">
+                <h1 class="text-xl font-bold font-mono text-slate-100 uppercase">Currency Mint & Payroll</h1>
+                <div class="bg-slate-900 border border-slate-800 rounded p-6 space-y-4">
+                    <h2 class="text-xs font-mono font-bold text-emerald-500 uppercase">Direct Currency Minting</h2>
+                    <div class="grid grid-cols-2 gap-4 font-mono text-xs">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Target Account ID</label>
+                            <input id="mint-target-id" type="text" placeholder="BN-2026-..." class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Mint Amount (Ɓ)</label>
+                            <input id="mint-amount" type="number" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white">
+                        </div>
+                    </div>
+                    <button onclick="mintCurrency()" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-mono font-bold text-xs px-4 py-2 rounded">Mint Currency</button>
+                </div>
+
+                <div class="bg-slate-900 border border-slate-800 rounded p-6 space-y-4">
+                    <h2 class="text-xs font-mono font-bold text-emerald-500 uppercase">Mass Payroll / Universal Stimulus</h2>
+                    <div class="font-mono text-xs">
+                        <label class="block text-slate-400 mb-1">Payout Amount per Citizen (Ɓ)</label>
+                        <input id="mass-payout-amount" type="number" placeholder="0.00" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white">
+                    </div>
+                    <button onclick="massPayout()" class="bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-mono font-bold text-xs px-4 py-2 rounded">Authorize Mass Payout</button>
+                </div>
+            </div>
+
+            <!-- LOANS REVIEW TAB -->
+            <div id="admin-loans" class="dashboard-view hidden max-w-3xl">
+                <h1 class="text-xl font-bold font-mono text-slate-100 uppercase mb-6">Credit Line Applications</h1>
+                <div id="admin-loans-list"></div>
+            </div>
+
+            <!-- ESCROW TAB -->
+            <div id="admin-escrow" class="dashboard-view hidden max-w-3xl">
+                <h1 class="text-xl font-bold font-mono text-slate-100 uppercase mb-6">Escrow Review Queue</h1>
+                <div id="admin-escrow-list"></div>
+            </div>
+
+            <!-- SUPPORT INBOX TAB -->
+            <div id="admin-support" class="dashboard-view hidden max-w-3xl">
+                <h1 class="text-xl font-bold font-mono text-slate-100 uppercase mb-6">Support Inbox & Appeals</h1>
+                <div id="admin-tickets-list"></div>
+            </div>
+
+            <!-- CONFIG TAB -->
+            <div id="admin-settings" class="dashboard-view hidden max-w-xl">
+                <h1 class="text-xl font-bold font-mono text-slate-100 uppercase mb-6">System Configuration</h1>
+                <div class="bg-slate-900 border border-slate-800 rounded p-6 space-y-4 font-mono text-xs">
+                    <div>
+                        <label class="block text-slate-400 mb-1">Escrow Auto-Clear Duration (Minutes)</label>
+                        <input id="setting-escrow-time" type="number" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white">
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Maximum Loan Cap per Citizen (Ɓ)</label>
+                        <input id="setting-loan-limit" type="number" class="w-full bg-slate-950 border border-slate-800 rounded p-2 text-white">
+                    </div>
+                    <button onclick="saveSystemSettings()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded">Save Configuration</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>
