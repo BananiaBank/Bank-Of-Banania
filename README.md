@@ -32,5 +32,6 @@ Welcome to the official digital banking portal for **The Sovereign Realm of Bana
 3. Configure your Supabase Project URL and Public Anon Key in the script configuration of `index.html`.
 4. Enable **GitHub Pages** in your repository settings targeting the `main` branch to make your bank instantly accessible online!
 
+https://tinyurl.com/Bank-Of-Banania
 ---
 *Official Financial Institution of the Sovereign Realm of Banania.*
