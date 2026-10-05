@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banania National Bank | Sovereign Realm of Banania</title>
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #1e293b;
+            --accent: #d97706;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #cbd5e1;
+            --text: #0f172a;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --subtext: #64748b;
+            --table-header: #f1f5f9;
+            --input-bg: #ffffff;
+        }
+
+        body.dark-mode {
+            --primary: #0f172a;
+            --accent: #f59e0b;
+            --bg: #0b0f19;
+            --card: #1e293b;
+            --border: #334155;
+            --text: #f8fafc;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --subtext: #94a3b8;
+            --table-header: #334155;
+            --input-bg: #0f172a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; transition: background 0.2s, color 0.2s; }
+        .app-container { width: 100%; max-width: 1150px; }
+
+        header { background: var(--primary); color: white; padding: 20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); }
+        header h1 { font-size: 1.4rem; font-weight: 700; }
+        header .motto { font-style: italic; font-size: 0.85rem; color: #cbd5e1; }
+        
+        nav { background: #334155; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; color: white; font-size: 0.9rem; }
+        
+        main { background: var(--card); border: 1px solid var(--border); border-top: none; padding: 25px; border-radius: 0 0 8px 8px; }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        @media(max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+        .card { border: 1px solid var(--border); padding: 18px; border-radius: 6px; background: var(--card); margin-bottom: 15px; }
+        .card h3 { font-size: 1.1rem; margin-bottom: 12px; color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+
+        label { font-size: 0.85rem; font-weight: 600; display: block; margin-top: 10px; margin-bottom: 4px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.95rem; background: var(--input-bg); color: var(--text); }
+        
+        button { background: var(--primary); color: white; border: none; padding: 10px 16px; font-weight: 600; border-radius: 4px; cursor: pointer; margin-top: 10px; font-size: 0.9rem; transition: opacity 0.15s; }
+        button:hover { opacity: 0.9; }
+        button.danger { background: var(--danger); color: white; }
+        button.success { background: var(--success); color: white; }
+        button.accent { background: var(--accent); color: #000; }
+        button.secondary { background: var(--subtext); color: white; }
+        .theme-btn { background: transparent; border: 1px solid rgba(255,255,255,0.4); color: white; padding: 6px 12px; margin: 0; }
+
+        .quick-preset-btns { display: flex; gap: 6px; margin-top: 6px; }
+        .quick-btn { background: var(--table-header); color: var(--text); border: 1px solid var(--border); padding: 4px 8px; font-size: 0.8rem; margin: 0; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.88rem; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
+        th { background: var(--table-header); font-weight: 600; }
+
+        .currency { font-weight: bold; color: var(--accent); }
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
+        .badge.active { background: #dcfce7; color: #166534; }
+        .badge.banned { background: #fee2e2; color: #991b1b; }
+        .badge.pending { background: #fef3c7; color: #92400e; }
+
+        .stat-val { font-size: 1.4rem; font-weight: bold; color: var(--text); margin-top: 4px; }
+        .search-bar { margin-bottom: 12px; }
+
+        .chat-box { height: 220px; overflow-y: auto; border: 1px solid var(--border); padding: 10px; border-radius: 4px; background: var(--table-header); margin-bottom: 10px; }
+        .chat-msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 4px; max-width: 80%; font-size: 0.85rem; }
+        .chat-msg.admin { background: #e0f2fe; color: #0369a1; margin-left: auto; }
+        .chat-msg.citizen { background: #f1f5f9; color: #334155; }
+
+        footer { text-align: center; margin-top: 25px; font-size: 0.8rem; color: var(--subtext); line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div>
+            <h1>Banania National Bank</h1>
+            <div class="motto">VIS ET FIDES &bull; Official Sovereign Treasury</div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button onclick="toggleDarkMode()" class="theme-btn" id="theme-toggle-btn">🌙 Dark Mode</button>
+        </div>
+    </header>
+
+    <nav id="top-nav" style="display: none;">
+        <span>User: <strong id="nav-user-code"></strong> (<span id="nav-user-role"></span>)</span>
+        <div>
+            <button onclick="lockWithPin()" class="accent" style="padding: 4px 10px; margin:0;">🔒 Lock (PIN)</button>
+            <button onclick="logout()" class="danger" style="padding: 4px 10px; margin:0;">Sign Out</button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- AUTH VIEW -->
+        <div id="view-auth" class="view active">
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Sign In</h3>
+                    <form onsubmit="handleLogin(event); return false;" autocomplete="off">
+                        <label>Citizen ID or Code Number</label>
+                        <input type="text" id="login-id" name="login_citizen_code" placeholder="e.g. 001 or BN-2026-001" autocomplete="off" required>
+                        <label>Password</label>
+                        <input type="password" id="login-password" name="login_citizen_password" autocomplete="new-password" required>
+                        <button type="submit">Access Accounts</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3>Citizen Registration Briefing</h3>
+                    <form onsubmit="handleRegister(event); return false;" autocomplete="off">
+                        <label>Full Legal Name</label>
+                        <input type="text" id="reg-name" name="reg_full_name" placeholder="e.g. John Doe" autocomplete="off" required>
+                        <label>Citizen Code Number (3 Digits)</label>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <span style="font-weight: bold; font-size: 0.9rem;">BN-2026-</span>
+                            <input type="text" id="reg-num" name="reg_citizen_num" placeholder="e.g. 002" maxlength="3" pattern="[0-9]{3}" autocomplete="off" required>
+                        </div>
+                        <label>Password</label>
+                        <input type="password" id="reg-password" name="reg_account_password" autocomplete="new-password" required>
+                        <label>Create 4-Digit Security PIN</label>
+                        <input type="password" id="reg-pin" name="reg_account_pin" placeholder="1234" maxlength="4" pattern="[0-9]{4}" autocomplete="off" required>
+                        <button type="submit" class="accent">Submit Request for Clearance</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- PIN LOCK SCREEN -->
+        <div id="view-pin-lock" class="view">
+            <div class="card" style="max-width: 400px; margin: 40px auto; text-align: center;">
+                <h3>Session Locked</h3>
+                <p style="font-size: 0.85rem; color: var(--subtext); margin-bottom: 15px;">Inactivity threshold reached. Enter your 4-digit PIN to resume.</p>
+                <form onsubmit="handlePinUnlock(event); return false;" autocomplete="off">
+                    <input type="password" id="unlock-pin" placeholder="****" maxlength="4" pattern="[0-9]{4}" style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;" required>
+                    <button type="submit" style="width: 100%;">Unlock Session</button>
+                </form>
+                <button onclick="logout()" class="danger" style="width: 100%; margin-top: 8px;">Log Out Completely</button>
+            </div>
+        </div>
+
+        <!-- BANNED VIEW -->
+        <div id="view-banned" class="view">
+            <div class="card" style="border-color: var(--danger);">
+                <h3 style="color: var(--danger);">Account Suspended / Under Royal Verification</h3>
+                <p><strong>Reason for Ban:</strong> <span id="ban-reason-text" style="color: var(--danger);"></span></p>
+                <hr style="margin: 15px 0; border: 0; border-top: 1px solid var(--border);">
+                <h4>Ban Appeal & Official Clearance Chat</h4>
+                <div class="chat-box" id="ban-chat-box"></div>
+                <form onsubmit="sendBanAppealMessage(event); return false;">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="ban-chat-input" placeholder="Type appeal message to admin..." autocomplete="off" required>
+                        <button type="submit">Send</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- CITIZEN DASHBOARD -->
+        <div id="view-citizen" class="view">
+            <div class="grid-3">
+                <div class="card">
+                    <h3>Treasury Balance</h3>
+                    <div class="stat-val currency" id="cit-balance">Ɓ0 0c</div>
+                    <p style="font-size: 0.75rem; color: var(--subtext); margin-top: 4px;">1 Banano (Ɓ) = 100 Peels (c)</p>
+                </div>
+                <div class="card">
+                    <h3>Outstanding Debt</h3>
+                    <div class="stat-val" style="color: var(--danger);" id="cit-debt">Ɓ0 0c</div>
+                    <button onclick="payDebtPrompt()" style="margin-top: 6px; padding: 4px 8px; font-size: 0.8rem;">Pay Debt</button>
+                </div>
+                <div class="card">
+                    <h3>Theft Protection Insurance</h3>
+                    <p style="margin-top: 6px;">Status: <span id="cit-insurance-status" class="badge">None</span></p>
+                    <button onclick="toggleInsurance()" id="insurance-btn" class="accent" style="margin-top: 10px; padding: 4px 8px; font-size: 0.8rem;">Subscribe / Unsubscribe</button>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Direct Transfer -->
+                <div class="card">
+                    <h3>Transfer Bananos & Peels</h3>
+                    <form onsubmit="handleTransfer(event); return false;" autocomplete="off">
+                        <label>Recipient Citizen ID</label>
+                        <input type="text" id="transfer-to" placeholder="e.g. BN-2026-001" autocomplete="off" required>
+                        <label>Amount (Ɓ.c)</label>
+                        <input type="number" step="0.01" id="transfer-amount" placeholder="e.g. 10.50 (Ɓ10 50c)" required>
+                        <div class="quick-preset-btns">
+                            <button type="button" class="quick-btn" onclick="setTransferAmt(1)">Ɓ1</button>
+                            <button type="button" class="quick-btn" onclick="setTransferAmt(5)">Ɓ5</button>
+                            <button type="button" class="quick-btn" onclick="setTransferAmt(10)">Ɓ10</button>
+                            <button type="button" class="quick-btn" onclick="setTransferAmt(50)">Ɓ50</button>
+                        </div>
+                        <button type="submit">Submit Transfer Request</button>
+                    </form>
+                </div>
+
+                <!-- Loan Wizard -->
+                <div class="card">
+                    <h3>Sovereign Loan Wizard</h3>
+                    <form onsubmit="handleLoanRequest(event); return false;">
+                        <label>Principal Amount (Ɓ)</label>
+                        <input type="number" step="0.01" id="loan-amount" oninput="calculateLoan()" placeholder="e.g. 50.00" required>
+                        <label>Repayment Term (Weeks)</label>
+                        <select id="loan-weeks" onchange="calculateLoan()">
+                            <option value="1">1 Week (5% Interest)</option>
+                            <option value="2">2 Weeks (10% Interest)</option>
+                            <option value="4">4 Weeks (20% Interest)</option>
+                            <option value="8">8 Weeks (35% Interest)</option>
+                        </select>
+                        <p style="font-size: 0.85rem; margin-top: 8px;">Total Repayment: <strong id="loan-total">Ɓ0 0c</strong></p>
+                        <button type="submit" class="accent">Apply for Loan Approval</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Physical ATM Cash Withdrawal -->
+                <div class="card">
+                    <h3>Physical ATM Cash Payout Request</h3>
+                    <p style="font-size: 0.8rem; color: var(--subtext);">Generates a 6-digit redemption token to claim physical banknotes / peels from an Admin in real life.</p>
+                    <form onsubmit="handleAtmRequest(event); return false;">
+                        <label>Amount to Withdraw (Ɓ.c)</label>
+                        <input type="number" step="0.01" id="atm-amount" placeholder="e.g. 20.50" required>
+                        <button type="submit">Generate Verification Token</button>
+                    </form>
+                    <div id="atm-token-display" style="margin-top: 10px;"></div>
+                </div>
+
+                <!-- Support Ticket -->
+                <div class="card">
+                    <h3>Support Tickets</h3>
+                    <form onsubmit="handleCreateTicket(event); return false;">
+                        <label>Subject</label>
+                        <input type="text" id="ticket-subject" required>
+                        <label>Message</label>
+                        <textarea id="ticket-message" rows="2" required></textarea>
+                        <button type="submit">Submit Ticket</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Financial Ledger -->
+            <div class="card">
+                <h3>
+                    <span>My Transactions History</span>
+                    <button onclick="exportStatementCSV()" class="secondary" style="padding: 4px 10px; font-size: 0.75rem; margin:0;">📥 Export CSV Statement</button>
+                </h3>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr><th>Date</th><th>Type</th><th>From/To</th><th>Amount</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="cit-tx-history"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN CONTROL PANEL -->
+        <div id="view-admin" class="view">
+            <h2 style="margin-bottom: 15px; color: var(--accent);">Royal Executive Control Panel</h2>
+
+            <!-- Analytics Dashboard -->
+            <div class="grid-4" style="margin-bottom: 15px;">
+                <div class="card" style="margin:0;">
+                    <div style="font-size: 0.8rem; color: var(--subtext);">Total Circulation</div>
+                    <div class="stat-val currency" id="admin-stat-circulation">Ɓ0 0c</div>
+                </div>
+                <div class="card" style="margin:0;">
+                    <div style="font-size: 0.8rem; color: var(--subtext);">Total National Debt</div>
+                    <div class="stat-val" style="color: var(--danger);" id="admin-stat-debt">Ɓ0 0c</div>
+                </div>
+                <div class="card" style="margin:0;">
+                    <div style="font-size: 0.8rem; color: var(--subtext);">Active Citizens</div>
+                    <div class="stat-val" id="admin-stat-citizens">0</div>
+                </div>
+                <div class="card" style="margin:0;">
+                    <div style="font-size: 0.8rem; color: var(--subtext);">Admin Personal Balance</div>
+                    <div class="stat-val currency" id="admin-personal-balance">Ɓ0 0c</div>
+                </div>
+            </div>
+
+            <!-- Pending Approvals & Physical ATM Cash Verification -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Pending Citizen Clearance Requests</h3>
+                    <div style="max-height: 180px; overflow-y: auto;">
+                        <table>
+                            <thead><tr><th>Citizen ID</th><th>Full Name</th><th>Actions</th></tr></thead>
+                            <tbody id="admin-pending-accounts"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card" style="border-left: 4px solid var(--accent);">
+                    <h3>ATM Cash Payout Verification</h3>
+                    <p style="font-size: 0.85rem; color: var(--subtext);">Enter the 6-digit token read to you by the citizen in real life to deduct digital funds and dispense real physical banknotes/peels.</p>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="admin-atm-token" placeholder="Enter 6-Digit Token" maxlength="6">
+                        <button onclick="verifyAtmToken()" class="accent" style="margin:0;">Fulfill & Dispense</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Citizen Registry with Real-Time Search -->
+            <div class="card">
+                <h3>
+                    <span>Citizen Registry & Track Record</span>
+                    <span style="font-size: 0.8rem; color: var(--subtext); font-weight: normal;">Searchable Registry</span>
+                </h3>
+                <div class="search-bar">
+                    <input type="text" id="citizen-search-input" onkeyup="filterCitizenRegistry()" placeholder="🔍 Search citizens by ID, Name, Balance, or Status...">
+                </div>
+                <div style="max-height: 280px; overflow-y: auto;">
+                    <table id="citizen-table">
+                        <thead>
+                            <tr>
+                                <th>Citizen ID</th>
+                                <th>Name</th>
+                                <th>Balance (Ɓ & Peels)</th>
+                                <th>Debt</th>
+                                <th>Insured</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-citizen-registry"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mass & Targeted Operations -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Mass Economic Actions</h3>
+                    <label>Mass Salary / Payout to ALL Citizens (Ɓ.c)</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" step="0.01" id="mass-payout-amt" placeholder="e.g. 50.00">
+                        <button onclick="handleMassPayout()" class="success" style="margin:0;">Distribute</button>
+                    </div>
+                    
+                    <label style="margin-top: 12px;">Mass Tax Collection from ALL Citizens (Ɓ.c)</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" step="0.01" id="mass-tax-amt" placeholder="e.g. 5.00">
+                        <button onclick="handleMassTax()" class="danger" style="margin:0;">Collect Tax</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Targeted Monetary Actions</h3>
+                    <form onsubmit="handleTargetMoney(event); return false;">
+                        <label>Target Citizen ID</label>
+                        <input type="text" id="target-id" placeholder="e.g. BN-2026-002" required>
+                        <label>Action</label>
+                        <select id="target-action">
+                            <option value="SALARY">Pay Salary (+)</option>
+                            <option value="TAX">Deduct Tax (-)</option>
+                        </select>
+                        <label>Amount (Ɓ.c)</label>
+                        <input type="number" step="0.01" id="target-amt" placeholder="e.g. 15.50" required>
+                        <button type="submit">Execute Action</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Pending Transfers & Loans Queue -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Pending Transfers Queue</h3>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <table>
+                            <thead><tr><th>From</th><th>To</th><th>Amount</th><th>Action</th></tr></thead>
+                            <tbody id="admin-pending-tx"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Pending Loan Applications</h3>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <table>
+                            <thead><tr><th>Citizen</th><th>Amount</th><th>Repay</th><th>Action</th></tr></thead>
+                            <tbody id="admin-pending-loans"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Support Tickets & Ban Appeal Chats -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Support Tickets Queue</h3>
+                    <div style="max-height: 220px; overflow-y: auto;" id="admin-tickets-container"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Ban Appeal Live Chat Center</h3>
+                    <label>Select Banned Citizen</label>
+                    <select id="admin-banned-chat-select" onchange="loadAdminBanChat()"></select>
+                    <div class="chat-box" id="admin-ban-chat-box" style="margin-top: 10px;"></div>
+                    <form onsubmit="sendAdminBanMessage(event); return false;">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="admin-ban-chat-input" placeholder="Type reply..." required>
+                            <button type="submit">Reply</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Settings -->
+            <div class="card">
+                <h3>Global Treasury Settings</h3>
+                <form onsubmit="handleUpdateSettings(event); return false;">
+                    <div class="grid-3">
+                        <div>
+                            <label>Auto-Accept Transfers (Minutes)</label>
+                            <input type="number" id="setting-auto-accept" required>
+                        </div>
+                        <div>
+                            <label>Weekly Tax Rate (%)</label>
+                            <input type="number" step="0.01" id="setting-tax-rate" required>
+                        </div>
+                        <div>
+                            <label>Weekly Insurance Fee (Ɓ)</label>
+                            <input type="number" step="0.01" id="setting-insurance-fee" required>
+                        </div>
+                    </div>
+                    <button type="submit">Save System Settings</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        Official Master Archive: BN-LAW-2026-ALPHA &bull; 1 Banano (Ɓ) = 100 Peels (c) &bull; Fixed Treasury Standard<br>
+        Exchange Rates: Ɓ1 = £1.00 / $1.25 / €1.15
+    </footer>
+</div>
+
+<script>
+    // ==========================================
+    // 1. CONFIGURATION & INITIALIZATION
+    // ==========================================
+    const SUPABASE_URL = "https://rqxrpksjgxzcamkwvzyn.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxeHJwa3NqZ3h6Y2Fta3d2enluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODY4MTgsImV4cCI6MjEwNjM2MjgxOH0.a4su8LpHd6v1E-8j0jABfHA-9vOOldaUQBexzbPotOE";
+    
+    let supabaseClient = null;
+    let currentUser = null;
+    let autoLockTimer = null;
+
+    // XSS Sanitizer Helper Function
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>'"]/g, tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag));
+    }
+
+    // Currency Formatter for Bananos (Ɓ) and Peels (c)
+    function formatMoney(amount) {
+        const val = parseFloat(amount) || 0;
+        const totalPeels = Math.round(val * 100);
+        const bananos = Math.floor(Math.abs(totalPeels) / 100);
+        const peels = Math.abs(totalPeels) % 100;
+        const sign = totalPeels < 0 ? '-' : '';
+        return `${sign}Ɓ${bananos} ${peels}c`;
+    }
+
+    // Dark Mode Toggle
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('banania_theme', isDark ? 'dark' : 'light');
+        document.getElementById('theme-toggle-btn').innerText = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+    }
+
+    if (localStorage.getItem('banania_theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('theme-toggle-btn').innerText = '☀️ Light Mode';
+    }
+
+    function getClient() {
+        if (!supabaseClient) {
+            if (SUPABASE_URL === "YOUR_SUPABASE_URL" || !SUPABASE_URL) {
+                alert("Please configure your Supabase URL and Anon Key.");
+                return null;
+            }
+            const { createClient } = window.supabase;
+            supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+        return supabaseClient;
+    }
+
+    function resetInactivityTimer() {
+        clearTimeout(autoLockTimer);
+        if (currentUser && !document.getElementById('view-pin-lock').classList.contains('active')) {
+            autoLockTimer = setTimeout(() => { lockWithPin(); }, 300000); // 5 Minutes
+        }
+    }
+    window.onload = resetInactivityTimer;
+    document.onmousemove = resetInactivityTimer;
+    document.onkeypress = resetInactivityTimer;
+
+    function showView(viewId) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        
+        if (currentUser) {
+            document.getElementById('top-nav').style.display = 'flex';
+            // Corrected: directly set innerText without double escaping
+            document.getElementById('nav-user-code').innerText = currentUser.citizen_id;
+            document.getElementById('nav-user-role').innerText = currentUser.role;
+        } else {
+            document.getElementById('top-nav').style.display = 'none';
+        }
+    }
+
+    function formatCitizenId(rawInput) {
+        const clean = rawInput.trim();
+        if (clean.toUpperCase().startsWith('BN-2026-')) return clean.toUpperCase();
+        const digits = clean.replace(/\D/g, '').padStart(3, '0');
+        return `BN-2026-${digits}`;
+    }
+
+    function filterCitizenRegistry() {
+        const query = document.getElementById('citizen-search-input').value.toLowerCase();
+        const rows = document.querySelectorAll('#admin-citizen-registry tr');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+
+    function setTransferAmt(amount) {
+        document.getElementById('transfer-amount').value = amount;
+    }
+
+    // Export Statement to CSV
+    function exportStatementCSV() {
+        const table = document.querySelector('#cit-tx-history');
+        let csv = ["Date,Type,Party,Amount,Status"];
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(r => {
+            const cols = r.querySelectorAll('td');
+            if (cols.length) {
+                const rowData = Array.from(cols).map(c => `"${c.innerText.replace(/"/g, '""')}"`);
+                csv.push(rowData.join(','));
+            }
+        });
+        const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Banania_Statement_${currentUser.citizen_id}.csv`;
+        a.click();
+    }
+
+    // ==========================================
+    // 2. AUTHENTICATION & LOGIN
+    // ==========================================
+    async function handleLogin(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        try {
+            const rawId = document.getElementById('login-id').value;
+            const fullId = formatCitizenId(rawId);
+            const pwd = document.getElementById('login-password').value.trim();
+
+            const { data: user, error } = await client
+                .from('citizens')
+                .select('*')
+                .eq('citizen_id', fullId)
+                .maybeSingle();
+
+            if (error) {
+                alert(`Supabase Error (${error.code}): ${error.message}`);
+                return;
+            }
+
+            if (!user) {
+                alert(`No citizen found with ID: ${fullId}`);
+                return;
+            }
+
+            if (user.password !== pwd) {
+                alert(`Incorrect password for ${fullId}.`);
+                return;
+            }
+
+            // Reject if role is PENDING
+            if (user.role === 'PENDING') {
+                alert("Your account is pending Royal Clearance. Please wait for an Admin to approve your registration.");
+                return;
+            }
+
+            currentUser = user;
+
+            if (currentUser.is_banned) {
+                showView('view-banned');
+                // Corrected: directly set innerText without double escaping
+                document.getElementById('ban-reason-text').innerText = currentUser.ban_reason || "Violation of Royal Law.";
+                loadBanChatMessages();
+                return;
+            }
+
+            routeUserDashboard();
+        } catch (err) {
+            alert("Error logging in: " + err.message);
+        }
+    }
+
+    async function handleRegister(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        try {
+            const name = document.getElementById('reg-name').value.trim();
+            const num = document.getElementById('reg-num').value.trim();
+            const pwd = document.getElementById('reg-password').value.trim();
+            const pin = document.getElementById('reg-pin').value.trim();
+            const citizen_id = formatCitizenId(num);
+
+            const { error } = await client.from('citizens').insert([{
+                citizen_id,
+                full_name: name,
+                password: pwd,
+                vault_pin: pin,
+                role: 'PENDING'
+            }]);
+
+            if (error) {
+                alert("Registration failed: " + error.message);
+            } else {
+                alert(`Registration submitted for ${citizen_id}! Contact an Admin to clear and approve your account.`);
+                document.getElementById('reg-name').value = '';
+                document.getElementById('reg-num').value = '';
+                document.getElementById('reg-password').value = '';
+                document.getElementById('reg-pin').value = '';
+            }
+        } catch (err) {
+            alert("Error registering: " + err.message);
+        }
+    }
+
+    function routeUserDashboard() {
+        if (currentUser.role === 'ADMIN') {
+            showView('view-admin');
+            loadAdminData();
+        } else {
+            showView('view-citizen');
+            loadCitizenData();
+        }
+    }
+
+    function lockWithPin() { showView('view-pin-lock'); }
+
+    function handlePinUnlock(e) {
+        if (e) e.preventDefault();
+        const pin = document.getElementById('unlock-pin').value.trim();
+        if (pin === currentUser.vault_pin) {
+            document.getElementById('unlock-pin').value = '';
+            routeUserDashboard();
+        } else {
+            alert("Incorrect Security PIN.");
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        showView('view-auth');
+    }
+
+    // ==========================================
+    // 3. CITIZEN DASHBOARD FUNCTIONS
+    // ==========================================
+    async function loadCitizenData() {
+        const client = getClient();
+        if (!client) return;
+
+        const { data: user } = await client.from('citizens').select('*').eq('citizen_id', currentUser.citizen_id).single();
+        if (user) currentUser = user;
+
+        document.getElementById('cit-balance').innerText = formatMoney(currentUser.balance);
+        document.getElementById('cit-debt').innerText = formatMoney(currentUser.debt);
+        
+        const insBadge = document.getElementById('cit-insurance-status');
+        insBadge.innerText = currentUser.has_insurance ? "ACTIVE" : "NONE";
+        insBadge.className = `badge ${currentUser.has_insurance ? 'active' : ''}`;
+
+        const { data: txs } = await client.from('transactions')
+            .select('*')
+            .or(`sender_id.eq.${currentUser.citizen_id},receiver_id.eq.${currentUser.citizen_id}`)
+            .order('created_at', { ascending: false });
+
+        const tbody = document.getElementById('cit-tx-history');
+        tbody.innerHTML = '';
+        (txs || []).forEach(tx => {
+            const isSender = tx.sender_id === currentUser.citizen_id;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${new Date(tx.created_at).toLocaleDateString()}</td>
+                    <td>${escapeHTML(tx.type)}</td>
+                    <td>${isSender ? 'To: ' + escapeHTML(tx.receiver_id) : 'From: ' + escapeHTML(tx.sender_id)}</td>
+                    <td class="currency">${isSender ? '-' : '+'}${formatMoney(tx.amount)}</td>
+                    <td><span class="badge ${escapeHTML(tx.status).toLowerCase()}">${escapeHTML(tx.status)}</span></td>
+                </tr>
+            `;
+        });
+    }
+
+    async function handleTransfer(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        const to = formatCitizenId(document.getElementById('transfer-to').value);
+        const amt = parseFloat(document.getElementById('transfer-amount').value);
+
+        // Corrected: !(amt > 0) handles empty, NaN, 0, and negative numbers
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+        if (amt > currentUser.balance) { alert("Insufficient balance."); return; }
+
+        const { error } = await client.from('transactions').insert([{
+            sender_id: currentUser.citizen_id,
+            receiver_id: to,
+            amount: amt,
+            type: 'TRANSFER',
+            status: 'PENDING'
+        }]);
+
+        if (error) alert("Transfer failed: Recipient ID invalid.");
+        else {
+            alert("Transfer request pending.");
+            document.getElementById('transfer-to').value = '';
+            document.getElementById('transfer-amount').value = '';
+            loadCitizenData();
+        }
+    }
+
+    function calculateLoan() {
+        const amt = parseFloat(document.getElementById('loan-amount').value) || 0;
+        const weeks = parseInt(document.getElementById('loan-weeks').value);
+        let rates = { 1: 0.05, 2: 0.10, 4: 0.20, 8: 0.35 };
+        const total = amt + (amt * rates[weeks]);
+        document.getElementById('loan-total').innerText = formatMoney(total);
+    }
+
+    async function handleLoanRequest(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        const amt = parseFloat(document.getElementById('loan-amount').value);
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+
+        const weeks = parseInt(document.getElementById('loan-weeks').value);
+        let rates = { 1: 0.05, 2: 0.10, 4: 0.20, 8: 0.35 };
+        const total = amt + (amt * rates[weeks]);
+
+        await client.from('loans').insert([{
+            citizen_id: currentUser.citizen_id,
+            principal: amt,
+            interest_rate: rates[weeks] * 100,
+            duration_weeks: weeks,
+            total_repayment: total,
+            status: 'PENDING_ADMIN'
+        }]);
+
+        alert("Loan application submitted for Admin approval.");
+        document.getElementById('loan-amount').value = '';
+    }
+
+    async function handleAtmRequest(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        const amt = parseFloat(document.getElementById('atm-amount').value);
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+        if (amt > currentUser.balance) { alert("Insufficient balance."); return; }
+
+        const token = Math.floor(100000 + Math.random() * 900000).toString();
+        await client.from('atm_tokens').insert([{
+            citizen_id: currentUser.citizen_id,
+            amount: amt,
+            token_code: token,
+            status: 'PENDING'
+        }]);
+
+        document.getElementById('atm-token-display').innerHTML = `
+            <div style="background:var(--table-header); border:1px solid var(--border); padding:10px; border-radius:4px; text-align:center;">
+                Read this token to Admin in real life:<br>
+                <strong style="font-size:1.4rem; letter-spacing:3px; color:var(--accent);">${token}</strong>
+            </div>
+        `;
+    }
+
+    async function toggleInsurance() {
+        const client = getClient();
+        if (!client) return;
+        const newStatus = !currentUser.has_insurance;
+        await client.from('citizens').update({ has_insurance: newStatus }).eq('citizen_id', currentUser.citizen_id);
+        loadCitizenData();
+    }
+
+    async function payDebtPrompt() {
+        const client = getClient();
+        if (!client) return;
+        const pay = prompt(`Enter amount to pay towards debt (Current Debt: ${formatMoney(currentUser.debt)}):`);
+        if (!pay) return;
+        
+        const amt = parseFloat(pay);
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+        if (amt > currentUser.balance) { alert("Insufficient balance."); return; }
+
+        const newDebt = Math.max(0, currentUser.debt - amt);
+        const newBal = currentUser.balance - amt;
+
+        await client.from('citizens').update({ balance: newBal, debt: newDebt }).eq('citizen_id', currentUser.citizen_id);
+        loadCitizenData();
+    }
+
+    async function handleCreateTicket(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        await client.from('support_tickets').insert([{
+            citizen_id: currentUser.citizen_id,
+            subject: document.getElementById('ticket-subject').value,
+            message: document.getElementById('ticket-message').value
+        }]);
+        alert("Support ticket submitted.");
+        document.getElementById('ticket-subject').value = '';
+        document.getElementById('ticket-message').value = '';
+    }
+
+    // ==========================================
+    // 4. ADMIN CONTROL FUNCTIONS & ANALYTICS
+    // ==========================================
+    async function loadAdminData() {
+        const client = getClient();
+        if (!client) return;
+
+        document.getElementById('admin-personal-balance').innerText = formatMoney(currentUser.balance);
+
+        // Calculate Global Analytics Stats
+        const { data: allCitizens } = await client.from('citizens').select('*');
+        let totalCirc = 0, totalDebt = 0, activeCount = 0;
+        (allCitizens || []).forEach(c => {
+            totalCirc += parseFloat(c.balance || 0);
+            totalDebt += parseFloat(c.debt || 0);
+            if (!c.is_banned && c.role !== 'PENDING') activeCount++;
+        });
+        document.getElementById('admin-stat-circulation').innerText = formatMoney(totalCirc);
+        document.getElementById('admin-stat-debt').innerText = formatMoney(totalDebt);
+        document.getElementById('admin-stat-citizens').innerText = activeCount;
+
+        // Pending Accounts Clearance
+        const { data: pendingAccs } = await client.from('citizens').select('*').eq('role', 'PENDING').eq('is_banned', false);
+        const pendingTbody = document.getElementById('admin-pending-accounts');
+        pendingTbody.innerHTML = '';
+        (pendingAccs || []).forEach(acc => {
+            pendingTbody.innerHTML += `
+                <tr>
+                    <td>${escapeHTML(acc.citizen_id)}</td>
+                    <td>${escapeHTML(acc.full_name)}</td>
+                    <td><button onclick="approveAccount('${escapeHTML(acc.citizen_id)}')" class="success" style="padding: 2px 6px;">Clear / Approve</button></td>
+                </tr>
+            `;
+        });
+
+        // Pending Transfers Queue
+        const { data: pendingTxs } = await client.from('transactions').select('*').eq('status', 'PENDING');
+        const txTbody = document.getElementById('admin-pending-tx');
+        txTbody.innerHTML = '';
+        (pendingTxs || []).forEach(tx => {
+            txTbody.innerHTML += `
+                <tr>
+                    <td>${escapeHTML(tx.sender_id)}</td><td>${escapeHTML(tx.receiver_id)}</td><td>${formatMoney(tx.amount)}</td>
+                    <td>
+                        <button onclick="resolveTx('${tx.id}', 'APPROVED')" class="success" style="padding: 2px 6px;">✓</button>
+                        <button onclick="resolveTx('${tx.id}', 'REJECTED')" class="danger" style="padding: 2px 6px;">✗</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        // Pending Loan Applications
+        const { data: pendingLoans } = await client.from('loans').select('*').eq('status', 'PENDING_ADMIN');
+        const loanTbody = document.getElementById('admin-pending-loans');
+        loanTbody.innerHTML = '';
+        (pendingLoans || []).forEach(l => {
+            loanTbody.innerHTML += `
+                <tr>
+                    <td>${escapeHTML(l.citizen_id)}</td><td>${formatMoney(l.principal)}</td><td>${formatMoney(l.total_repayment)}</td>
+                    <td>
+                        <button onclick="resolveLoan('${l.id}', '${escapeHTML(l.citizen_id)}', ${l.principal}, ${l.total_repayment}, true)" class="success" style="padding: 2px 6px;">Approve</button>
+                        <button onclick="resolveLoan('${l.id}', '${escapeHTML(l.citizen_id)}', 0, 0, false)" class="danger" style="padding: 2px 6px;">Reject</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        // Citizen Registry (Fixed unban syntax typo)
+        const regTbody = document.getElementById('admin-citizen-registry');
+        regTbody.innerHTML = '';
+        const bannedSelect = document.getElementById('admin-banned-chat-select');
+        bannedSelect.innerHTML = '<option value="">Select Citizen</option>';
+
+        (allCitizens || []).forEach(c => {
+            if (c.is_banned) {
+                bannedSelect.innerHTML += `<option value="${escapeHTML(c.citizen_id)}">${escapeHTML(c.citizen_id)} - ${escapeHTML(c.full_name)}</option>`;
+            }
+            regTbody.innerHTML += `
+                <tr>
+                    <td>${escapeHTML(c.citizen_id)}</td>
+                    <td>${escapeHTML(c.full_name)}</td>
+                    <td>${formatMoney(c.balance)}</td>
+                    <td>${formatMoney(c.debt)}</td>
+                    <td>${c.has_insurance ? 'YES' : 'NO'}</td>
+                    <td><span class="badge ${c.is_banned ? 'banned' : (c.role === 'PENDING' ? 'pending' : 'active')}">${c.is_banned ? 'BANNED' : c.role}</span></td>
+                    <td>
+                        ${c.is_banned ? 
+                            `<button onclick="unbanCitizen('${escapeHTML(c.citizen_id)}')" class="success" style="padding: 2px 6px;">Unban</button>` : 
+                            `<button onclick="banCitizenPrompt('${escapeHTML(c.citizen_id)}')" class="danger" style="padding: 2px 6px;">Ban</button>`
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+
+        // Load Support Tickets
+        const { data: tickets } = await client.from('support_tickets').select('*').order('created_at', { ascending: false });
+        const tContainer = document.getElementById('admin-tickets-container');
+        tContainer.innerHTML = '';
+        (tickets || []).forEach(t => {
+            tContainer.innerHTML += `
+                <div style="border-bottom: 1px solid var(--border); padding: 6px 0;">
+                    <strong>[${escapeHTML(t.citizen_id)}] ${escapeHTML(t.subject)}</strong>
+                    <p style="font-size:0.8rem; color:var(--subtext);">${escapeHTML(t.message)}</p>
+                </div>
+            `;
+        });
+
+        // Load Settings
+        const { data: st } = await client.from('bank_settings').select('*').eq('id', 1).single();
+        if (st) {
+            document.getElementById('setting-auto-accept').value = st.auto_accept_minutes;
+            document.getElementById('setting-tax-rate').value = st.weekly_tax_rate;
+            document.getElementById('setting-insurance-fee').value = st.weekly_insurance_cost;
+        }
+    }
+
+    async function approveAccount(id) {
+        const client = getClient();
+        if (!client) return;
+        await client.from('citizens').update({ role: 'CITIZEN' }).eq('citizen_id', id);
+        alert(`Account ${id} verified and marked active.`);
+        loadAdminData();
+    }
+
+    async function handleMassPayout() {
+        const client = getClient();
+        if (!client) return;
+        const amt = parseFloat(document.getElementById('mass-payout-amt').value);
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+
+        const { data: citizens } = await client.from('citizens').select('*');
+        for (let c of citizens) {
+            await client.from('citizens').update({ balance: parseFloat(c.balance) + amt }).eq('citizen_id', c.citizen_id);
+        }
+        alert(`Distributed ${formatMoney(amt)} to all citizens.`);
+        loadAdminData();
+    }
+
+    async function handleMassTax() {
+        const client = getClient();
+        if (!client) return;
+        const amt = parseFloat(document.getElementById('mass-tax-amt').value);
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+
+        const { data: citizens } = await client.from('citizens').select('*');
+        for (let c of citizens) {
+            await client.from('citizens').update({ balance: Math.max(0, parseFloat(c.balance) - amt) }).eq('citizen_id', c.citizen_id);
+        }
+        alert(`Collected ${formatMoney(amt)} tax from all citizens.`);
+        loadAdminData();
+    }
+
+    async function handleTargetMoney(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        const id = formatCitizenId(document.getElementById('target-id').value);
+        const action = document.getElementById('target-action').value;
+        const amt = parseFloat(document.getElementById('target-amt').value);
+
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+
+        const { data: user } = await client.from('citizens').select('*').eq('citizen_id', id).single();
+        if (!user) { alert("Citizen not found."); return; }
+
+        let newBal = action === 'SALARY' ? parseFloat(user.balance) + amt : Math.max(0, parseFloat(user.balance) - amt);
+        await client.from('citizens').update({ balance: newBal }).eq('citizen_id', id);
+        alert(`Executed ${action} of ${formatMoney(amt)} for ${id}`);
+        loadAdminData();
+    }
+
+    async function resolveTx(txId, status) {
+        const client = getClient();
+        if (!client) return;
+        if (status === 'APPROVED') {
+            const { data: tx } = await client.from('transactions').select('*').eq('id', txId).single();
+            const { data: sender } = await client.from('citizens').select('*').eq('citizen_id', tx.sender_id).single();
+            const { data: receiver } = await client.from('citizens').select('*').eq('citizen_id', tx.receiver_id).single();
+
+            // Re-check sender balance before completing transaction
+            if (parseFloat(sender.balance) < parseFloat(tx.amount)) {
+                alert(`Transaction cannot be approved: ${tx.sender_id} has insufficient balance.`);
+                await client.from('transactions').update({ status: 'REJECTED' }).eq('id', txId);
+                loadAdminData();
+                return;
+            }
+
+            await client.from('citizens').update({ balance: parseFloat(sender.balance) - parseFloat(tx.amount) }).eq('citizen_id', tx.sender_id);
+            await client.from('citizens').update({ balance: parseFloat(receiver.balance) + parseFloat(tx.amount) }).eq('citizen_id', tx.receiver_id);
+        }
+        await client.from('transactions').update({ status }).eq('id', txId);
+        loadAdminData();
+    }
+
+    async function resolveLoan(loanId, citId, principal, totalRepay, approve) {
+        const client = getClient();
+        if (!client) return;
+        if (approve) {
+            const { data: user } = await client.from('citizens').select('*').eq('citizen_id', citId).single();
+            await client.from('citizens').update({
+                balance: parseFloat(user.balance) + parseFloat(principal),
+                debt: parseFloat(user.debt) + parseFloat(totalRepay)
+            }).eq('citizen_id', citId);
+            await client.from('loans').update({ status: 'APPROVED' }).eq('id', loanId);
+        } else {
+            await client.from('loans').update({ status: 'REJECTED' }).eq('id', loanId);
+        }
+        loadAdminData();
+    }
+
+    async function verifyAtmToken() {
+        const client = getClient();
+        if (!client) return;
+        const token = document.getElementById('admin-atm-token').value.trim();
+        const { data: atm } = await client.from('atm_tokens').select('*').eq('token_code', token).eq('status', 'PENDING').single();
+
+        if (!atm) { alert("Invalid or expired token."); return; }
+
+        const { data: user } = await client.from('citizens').select('*').eq('citizen_id', atm.citizen_id).single();
+        await client.from('citizens').update({ balance: parseFloat(user.balance) - parseFloat(atm.amount) }).eq('citizen_id', atm.citizen_id);
+        await client.from('atm_tokens').update({ status: 'COMPLETED' }).eq('id', atm.id);
+
+        alert(`TOKEN VERIFIED! Dispense ${formatMoney(atm.amount)} physical cash to ${atm.citizen_id}.`);
+        loadAdminData();
+    }
+
+    async function banCitizenPrompt(id) {
+        const client = getClient();
+        if (!client) return;
+        const reason = prompt(`Enter reason for banning ${id}:`);
+        if (!reason) return;
+        await client.from('citizens').update({ is_banned: true, ban_reason: reason }).eq('citizen_id', id);
+        loadAdminData();
+    }
+
+    async function unbanCitizen(id) {
+        const client = getClient();
+        if (!client) return;
+        await client.from('citizens').update({ is_banned: false, ban_reason: null }).eq('citizen_id', id);
+        loadAdminData();
+    }
+
+    async function handleUpdateSettings(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        await client.from('bank_settings').update({
+            auto_accept_minutes: parseInt(document.getElementById('setting-auto-accept').value),
+            weekly_tax_rate: parseFloat(document.getElementById('setting-tax-rate').value),
+            weekly_insurance_cost: parseFloat(document.getElementById('setting-insurance-fee').value)
+        }).eq('id', 1);
+        alert("Global Bank Settings updated.");
+    }
+
+    // ==========================================
+    // 5. BAN CHAT & APPEAL SYSTEM
+    // ==========================================
+    async function loadBanChatMessages() {
+        const client = getClient();
+        if (!client) return;
+        const { data: msgs } = await client.from('ban_appeals').select('*').eq('citizen_id', currentUser.citizen_id).order('created_at', { ascending: true });
+        const box = document.getElementById('ban-chat-box');
+        box.innerHTML = '';
+        (msgs || []).forEach(m => {
+            box.innerHTML += `<div class="chat-msg ${escapeHTML(m.sender_role).toLowerCase()}"><strong>${escapeHTML(m.sender_role)}:</strong> ${escapeHTML(m.message)}</div>`;
+        });
+    }
+
+    async function sendBanAppealMessage(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const input = document.getElementById('ban-chat-input');
+        await client.from('ban_appeals').insert([{
+            citizen_id: currentUser.citizen_id,
+            sender_role: 'CITIZEN',
+            message: input.value
+        }]);
+        input.value = '';
+        loadBanChatMessages();
+    }
+
+    async function loadAdminBanChat() {
+        const client = getClient();
+        if (!client) return;
+        const citId = document.getElementById('admin-banned-chat-select').value;
+        if (!citId) return;
+        const { data: msgs } = await client.from('ban_appeals').select('*').eq('citizen_id', citId).order('created_at', { ascending: true });
+        const box = document.getElementById('admin-ban-chat-box');
+        box.innerHTML = '';
+        (msgs || []).forEach(m => {
+            box.innerHTML += `<div class="chat-msg ${escapeHTML(m.sender_role).toLowerCase()}"><strong>${escapeHTML(m.sender_role)}:</strong> ${escapeHTML(m.message)}</div>`;
+        });
+    }
+
+    async function sendAdminBanMessage(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const citId = document.getElementById('admin-banned-chat-select').value;
+        const input = document.getElementById('admin-ban-chat-input');
+        if (!citId) return;
+
+        await client.from('ban_appeals').insert([{
+            citizen_id: citId,
+            sender_role: 'ADMIN',
+            message: input.value
+        }]);
+        input.value = '';
+        loadAdminBanChat();
+    }
+</script>
+</body>
+</html>
