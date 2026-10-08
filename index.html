@@ -137,7 +137,7 @@
                         <label>Citizen Code Number (3 Digits)</label>
                         <div style="display: flex; gap: 5px; align-items: center;">
                             <span style="font-weight: bold; font-size: 0.9rem;">BN-2026-</span>
-                            <input type="text" id="reg-num" name="reg_citizen_num" placeholder="e.g. 002" maxlength="3" pattern="[0-9]{3}" autocomplete="off" required>
+                            <input type="text" id="reg-num" name="reg_citizen_num" placeholder="e.g. 001" maxlength="3" pattern="[0-9]{3}" autocomplete="off" required>
                         </div>
                         <label>Password</label>
                         <input type="password" id="reg-password" name="reg_account_password" autocomplete="new-password" required>
@@ -195,6 +195,8 @@
                 <div class="card">
                     <h3>Theft Protection Insurance</h3>
                     <p style="margin-top: 6px;">Status: <span id="cit-insurance-status" class="badge">None</span></p>
+                    <p style="margin-top: 6px; font-size: 0.8rem;">If you are robbed, the treasury pays you back. The fee is charged weekly; the policy lapses if you cannot pay.</p>
+                    <p style="margin-top: 6px;">Weekly salary: <strong id="cit-salary">Ɓ0 0c</strong></p>
                     <button onclick="toggleInsurance()" id="insurance-btn" class="accent" style="margin-top: 10px; padding: 4px 8px; font-size: 0.8rem;">Subscribe / Unsubscribe</button>
                 </div>
             </div>
@@ -344,6 +346,7 @@
                                 <th>Balance (Ɓ & Peels)</th>
                                 <th>Debt</th>
                                 <th>Insured</th>
+                                <th>Salary / wk</th>
                                 <th>Status</th>
                                 <th>Actions</th>
                             </tr>
@@ -431,6 +434,35 @@
                 </div>
             </div>
 
+            <!-- Payroll -->
+            <div class="card">
+                <h3>Weekly Salaries &amp; Payroll Cycle</h3>
+                <form onsubmit="handleSetSalary(event); return false;">
+                    <div class="grid-3">
+                        <div><label>Citizen Code</label><input type="text" id="salary-id" placeholder="e.g. 004" required></div>
+                        <div><label>Weekly Salary (Ɓ, 0 = none)</label><input type="number" step="0.01" min="0" id="salary-amt" required></div>
+                        <div style="align-self: end;"><button type="submit">Set Salary</button></div>
+                    </div>
+                </form>
+                <p style="margin-top: 12px;"><label><input type="checkbox" id="setting-auto-cycle" onchange="toggleAutoCycle()" style="width: auto; display: inline; margin-right: 6px;">Run the weekly cycle automatically (pays salaries, collects tax and insurance fees)</label></p>
+                <p id="cycle-info" style="margin-top: 6px; font-size: 0.85rem;"></p>
+                <button onclick="runCycleNow()" class="accent" style="margin-top: 8px;">Run Weekly Cycle Now</button>
+            </div>
+
+            <!-- Theft -->
+            <div class="card">
+                <h3>Record Theft Incident</h3>
+                <form onsubmit="handleTheft(event); return false;">
+                    <div class="grid-3">
+                        <div><label>Victim Code</label><input type="text" id="theft-victim" required></div>
+                        <div><label>Thief Code (optional)</label><input type="text" id="theft-thief"></div>
+                        <div><label>Amount (Ɓ)</label><input type="number" step="0.01" min="0" id="theft-amt" required></div>
+                    </div>
+                    <button type="submit" class="danger">Record Theft</button>
+                </form>
+                <p style="margin-top: 6px; font-size: 0.8rem;">Insured victims are reimbursed by the treasury; uninsured victims lose the money.</p>
+            </div>
+
             <!-- Settings -->
             <div class="card">
                 <h3>Global Treasury Settings</h3>
@@ -507,6 +539,31 @@
         document.getElementById('theme-toggle-btn').innerText = '☀️ Light Mode';
     }
 
+    // Shows the real database error whenever a save/update/delete fails
+    function wrapWrites(c) {
+        const origFrom = c.from.bind(c);
+        c.from = (table) => {
+            const qb = origFrom(table);
+            ['insert', 'update', 'delete', 'upsert'].forEach(m => {
+                if (typeof qb[m] !== 'function') return;
+                const orig = qb[m].bind(qb);
+                qb[m] = (...args) => {
+                    const b = orig(...args);
+                    // citizens/transactions inserts already show their own error
+                    if (m === 'insert' && (table === 'citizens' || table === 'transactions')) return b;
+                    const origThen = b.then.bind(b);
+                    b.then = (res, rej) => origThen(r => {
+                        if (r && r.error) alert('Database error (' + m + ' on ' + table + '): ' + r.error.message);
+                        return res ? res(r) : r;
+                    }, rej);
+                    return b;
+                };
+            });
+            return qb;
+        };
+        return c;
+    }
+
     function getClient() {
         if (!supabaseClient) {
             if (SUPABASE_URL === "YOUR_SUPABASE_URL" || !SUPABASE_URL) {
@@ -514,7 +571,7 @@
                 return null;
             }
             const { createClient } = window.supabase;
-            supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            supabaseClient = wrapWrites(createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
         }
         return supabaseClient;
     }
@@ -633,6 +690,8 @@
                 return;
             }
 
+            await runWeeklyCycleIfDue();
+
             routeUserDashboard();
         } catch (err) {
             alert("Error logging in: " + err.message);
@@ -717,6 +776,7 @@
         const insBadge = document.getElementById('cit-insurance-status');
         insBadge.innerText = currentUser.has_insurance ? "ACTIVE" : "NONE";
         insBadge.className = `badge ${currentUser.has_insurance ? 'active' : ''}`;
+        document.getElementById('cit-salary').innerText = formatMoney(currentUser.weekly_salary || 0) + ' / week';
 
         const { data: txs } = await client.from('transactions')
             .select('*')
@@ -759,7 +819,7 @@
             status: 'PENDING'
         }]);
 
-        if (error) alert("Transfer failed: Recipient ID invalid.");
+        if (error) alert("Transfer failed: " + error.message);
         else {
             alert("Transfer request pending.");
             document.getElementById('transfer-to').value = '';
@@ -949,6 +1009,7 @@
                     <td>${formatMoney(c.balance)}</td>
                     <td>${formatMoney(c.debt)}</td>
                     <td>${c.has_insurance ? 'YES' : 'NO'}</td>
+                    <td>${formatMoney(c.weekly_salary || 0)}</td>
                     <td><span class="badge ${c.is_banned ? 'banned' : (c.role === 'PENDING' ? 'pending' : 'active')}">${c.is_banned ? 'BANNED' : c.role}</span></td>
                     <td>
                         ${c.is_banned ? 
@@ -979,6 +1040,11 @@
             document.getElementById('setting-auto-accept').value = st.auto_accept_minutes;
             document.getElementById('setting-tax-rate').value = st.weekly_tax_rate;
             document.getElementById('setting-insurance-fee').value = st.weekly_insurance_cost;
+            document.getElementById('setting-auto-cycle').checked = !!st.auto_cycle;
+            const lastC = st.last_cycle_at ? new Date(st.last_cycle_at) : null;
+            document.getElementById('cycle-info').innerText = (st.auto_cycle ? 'Automatic: ON. ' : 'Automatic: OFF. ') +
+                (lastC ? 'Last run: ' + lastC.toLocaleString() + '. Next due: ' + new Date(lastC.getTime() + 604800000).toLocaleString() + '. ' : 'Not run yet. ') +
+                (st.last_cycle_summary ? 'Last result: ' + st.last_cycle_summary : '');
         }
     }
 
@@ -1119,6 +1185,123 @@
             weekly_insurance_cost: parseFloat(document.getElementById('setting-insurance-fee').value)
         }).eq('id', 1);
         alert("Global Bank Settings updated.");
+    }
+
+
+    // ==========================================
+    // 6. WEEKLY CYCLE, SALARIES, INSURANCE & THEFT
+    // ==========================================
+    const r2 = n => Math.round(n * 100) / 100;
+
+    // Pays salaries, collects tax + insurance fees. Catches up on missed weeks.
+    // Only one browser can "claim" a given week, so nobody gets paid twice.
+    async function runWeeklyCycleIfDue(force) {
+        try {
+            const client = getClient();
+            if (!client) return null;
+            const { data: st } = await client.from('bank_settings').select('*').eq('id', 1).single();
+            if (!st || (!force && !st.auto_cycle)) return null;
+            const WEEK = 604800000, now = Date.now();
+            const last = st.last_cycle_at ? new Date(st.last_cycle_at).getTime() : null;
+            if (last === null && !force) {   // first time: just start the clock
+                await client.from('bank_settings').update({ last_cycle_at: new Date(now).toISOString() }).eq('id', 1).is('last_cycle_at', null);
+                return null;
+            }
+            const weeks = force ? 1 : Math.floor((now - last) / WEEK);
+            if (weeks < 1) return null;
+            const newLast = new Date(force || last === null ? now : last + weeks * WEEK).toISOString();
+            let q = client.from('bank_settings').update({ last_cycle_at: newLast }).eq('id', 1);
+            q = st.last_cycle_at ? q.eq('last_cycle_at', st.last_cycle_at) : q.is('last_cycle_at', null);
+            const { data: won } = await q.select();
+            if (!won || !won.length) return null;   // someone else already ran it
+
+            const taxRate = (parseFloat(st.weekly_tax_rate) || 0) / 100, fee = parseFloat(st.weekly_insurance_cost) || 0;
+            const { data: cits } = await client.from('citizens').select('*').neq('role', 'PENDING').eq('is_banned', false);
+            let paid = 0, taxed = 0, premiums = 0, lapsed = 0;
+            for (const c of (cits || [])) {
+                const start = parseFloat(c.balance) || 0;
+                let bal = start;
+                const upd = {};
+                const sal = r2((parseFloat(c.weekly_salary) || 0) * weeks);
+                if (sal > 0) { bal += sal; paid += sal; }
+                if (c.role === 'CITIZEN') {
+                    if (taxRate > 0) { const t = Math.min(bal, r2(bal * taxRate * weeks)); bal -= t; taxed += t; }
+                    if (c.has_insurance && fee > 0) {
+                        const f = r2(fee * weeks);
+                        if (bal >= f) { bal -= f; premiums += f; } else { upd.has_insurance = false; lapsed++; }
+                    }
+                }
+                bal = r2(bal);
+                if (bal !== start) upd.balance = bal;
+                if (Object.keys(upd).length) await client.from('citizens').update(upd).eq('citizen_id', c.citizen_id);
+            }
+            const summary = `${weeks} week(s): salaries ${formatMoney(paid)}, tax ${formatMoney(taxed)}, insurance fees ${formatMoney(premiums)}, ${lapsed} policy(ies) lapsed.`;
+            await client.from('bank_settings').update({ last_cycle_summary: summary }).eq('id', 1);
+            return summary;
+        } catch (err) {
+            console.error('Weekly cycle error:', err);
+            return null;
+        }
+    }
+
+    async function toggleAutoCycle() {
+        const client = getClient();
+        if (!client) return;
+        const on = document.getElementById('setting-auto-cycle').checked;
+        await client.from('bank_settings').update({ auto_cycle: on }).eq('id', 1);
+        if (on) await runWeeklyCycleIfDue();
+        loadAdminData();
+    }
+
+    async function runCycleNow() {
+        if (!confirm('Run one full weekly cycle right now? This pays salaries and collects tax and insurance fees immediately.')) return;
+        const summary = await runWeeklyCycleIfDue(true);
+        alert(summary ? 'Weekly cycle complete: ' + summary : 'Cycle did not run. Check the database columns were added.');
+        loadAdminData();
+    }
+
+    async function handleSetSalary(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const id = formatCitizenId(document.getElementById('salary-id').value);
+        const amt = parseFloat(document.getElementById('salary-amt').value);
+        if (!(amt >= 0)) { alert('Please enter a salary of 0 or more.'); return; }
+        const { data: user } = await client.from('citizens').select('citizen_id').eq('citizen_id', id).single();
+        if (!user) { alert('Citizen not found.'); return; }
+        await client.from('citizens').update({ weekly_salary: r2(amt) }).eq('citizen_id', id);
+        alert(`${id} now earns ${formatMoney(amt)} per week.`);
+        document.getElementById('salary-id').value = '';
+        document.getElementById('salary-amt').value = '';
+        loadAdminData();
+    }
+
+    async function handleTheft(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const vid = formatCitizenId(document.getElementById('theft-victim').value);
+        const tRaw = document.getElementById('theft-thief').value.trim();
+        const amt = parseFloat(document.getElementById('theft-amt').value);
+        if (!(amt > 0)) { alert('Please enter a valid amount greater than 0.'); return; }
+        const { data: v } = await client.from('citizens').select('*').eq('citizen_id', vid).single();
+        if (!v) { alert('Victim not found.'); return; }
+        let thief = null;
+        if (tRaw) {
+            const { data: t } = await client.from('citizens').select('*').eq('citizen_id', formatCitizenId(tRaw)).single();
+            if (!t) { alert('Thief not found.'); return; }
+            thief = t;
+        }
+        const stolen = Math.min(amt, parseFloat(v.balance) || 0);
+        if (!v.has_insurance) await client.from('citizens').update({ balance: r2((parseFloat(v.balance) || 0) - stolen) }).eq('citizen_id', vid);
+        if (thief) await client.from('citizens').update({ balance: r2((parseFloat(thief.balance) || 0) + stolen) }).eq('citizen_id', thief.citizen_id);
+        alert(v.has_insurance
+            ? `Theft recorded. ${vid} is insured, so the treasury covered the loss of ${formatMoney(stolen)}.`
+            : `Theft recorded. ${vid} lost ${formatMoney(stolen)}${thief ? ' to ' + thief.citizen_id : ''}.`);
+        document.getElementById('theft-victim').value = '';
+        document.getElementById('theft-thief').value = '';
+        document.getElementById('theft-amt').value = '';
+        loadAdminData();
     }
 
     // ==========================================
