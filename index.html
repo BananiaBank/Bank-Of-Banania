@@ -1,0 +1,1767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2064%2064%27%3E%3Crect%20width%3D%2764%27%20height%3D%2764%27%20rx%3D%2714%27%20fill%3D%27%23d97706%27/%3E%3Ctext%20x%3D%2732%27%20y%3D%2747%27%20font-size%3D%2742%27%20text-anchor%3D%27middle%27%20fill%3D%27%23fff%27%20font-family%3D%27Georgia%2Cserif%27%20font-weight%3D%27bold%27%3E%C6%81%3C/text%3E%3C/svg%3E">
+    <title>Banania National Bank | Sovereign Realm of Banania</title>
+    <!-- Supabase JS Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --primary: #1e293b;
+            --accent: #d97706;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #cbd5e1;
+            --text: #0f172a;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --subtext: #64748b;
+            --table-header: #f1f5f9;
+            --input-bg: #ffffff;
+        }
+
+        body.dark-mode {
+            --primary: #0f172a;
+            --accent: #f59e0b;
+            --bg: #0b0f19;
+            --card: #1e293b;
+            --border: #334155;
+            --text: #f8fafc;
+            --danger: #ef4444;
+            --success: #22c55e;
+            --subtext: #94a3b8;
+            --table-header: #334155;
+            --input-bg: #0f172a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; transition: background 0.2s, color 0.2s; }
+        .app-container { width: 100%; max-width: 1150px; }
+
+        header { background: var(--primary); color: white; padding: 20px; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); }
+        header h1 { font-size: 1.4rem; font-weight: 700; }
+        header .motto { font-style: italic; font-size: 0.85rem; color: #cbd5e1; }
+        
+        nav { background: #334155; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; color: white; font-size: 0.9rem; }
+        
+        main { background: var(--card); border: 1px solid var(--border); border-top: none; padding: 25px; border-radius: 0 0 8px 8px; }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        @media(max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+        .card { border: 1px solid var(--border); padding: 18px; border-radius: 6px; background: var(--card); margin-bottom: 15px; }
+        .card h3 { font-size: 1.1rem; margin-bottom: 12px; color: var(--accent); border-bottom: 2px solid var(--border); padding-bottom: 6px; display: flex; justify-content: space-between; align-items: center; }
+
+        label { font-size: 0.85rem; font-weight: 600; display: block; margin-top: 10px; margin-bottom: 4px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.95rem; background: var(--input-bg); color: var(--text); }
+        
+        button { background: var(--primary); color: white; border: none; padding: 10px 16px; font-weight: 600; border-radius: 4px; cursor: pointer; margin-top: 10px; font-size: 0.9rem; transition: opacity 0.15s; }
+        button:hover { opacity: 0.9; }
+        button.danger { background: var(--danger); color: white; }
+        button.success { background: var(--success); color: white; }
+        button.accent { background: var(--accent); color: #000; }
+        button.secondary { background: var(--subtext); color: white; }
+        .theme-btn { background: transparent; border: 1px solid rgba(255,255,255,0.4); color: white; padding: 6px 12px; margin: 0; }
+
+        .quick-preset-btns { display: flex; gap: 6px; margin-top: 6px; }
+        .quick-btn { background: var(--table-header); color: var(--text); border: 1px solid var(--border); padding: 4px 8px; font-size: 0.8rem; margin: 0; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.88rem; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); }
+        th { background: var(--table-header); font-weight: 600; }
+
+        .currency { font-weight: bold; color: var(--accent); }
+        .badge { padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; display: inline-block; }
+        .badge.active { background: #dcfce7; color: #166534; }
+        .badge.banned { background: #fee2e2; color: #991b1b; }
+        .badge.pending { background: #fef3c7; color: #92400e; }
+
+        .stat-val { font-size: 1.4rem; font-weight: bold; color: var(--text); margin-top: 4px; }
+        .search-bar { margin-bottom: 12px; }
+
+        .chat-box { height: 220px; overflow-y: auto; border: 1px solid var(--border); padding: 10px; border-radius: 4px; background: var(--table-header); margin-bottom: 10px; }
+        .chat-msg { margin-bottom: 8px; padding: 6px 10px; border-radius: 4px; max-width: 80%; font-size: 0.85rem; }
+        .chat-msg.admin { background: #e0f2fe; color: #0369a1; margin-left: auto; }
+        .chat-msg.citizen { background: #f1f5f9; color: #334155; }
+
+        footer { text-align: center; margin-top: 25px; font-size: 0.8rem; color: var(--subtext); line-height: 1.5; }
+        .overlay { position: fixed; inset: 0; background: var(--bg); z-index: 999; display: none; align-items: center; justify-content: center; padding: 20px; overflow: auto; }
+        .overlay.show { display: flex; }
+        .overlay-box { max-width: 560px; width: 100%; background: var(--card); border: 1px solid var(--border); border-top: 4px solid var(--accent); border-radius: 8px; padding: 28px; }
+        .overlay-box h2 { margin-bottom: 12px; color: var(--accent); }
+        .overlay-box h3 { margin: 14px 0 4px; font-size: 1rem; }
+        .overlay-box ul, .overlay-box ol { margin: 8px 0 8px 22px; font-size: 0.92rem; line-height: 1.5; }
+        header { background: linear-gradient(135deg, var(--primary), #334155); border-radius: 12px 12px 0 0; }
+        main { border-radius: 0 0 12px 12px; }
+        nav { position: sticky; top: 0; z-index: 50; flex-wrap: wrap; gap: 6px; }
+        .card { border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .card h3 { font-size: 1rem; letter-spacing: 0.3px; }
+        button { border-radius: 8px; transition: transform 0.1s, opacity 0.2s; }
+        button:hover { transform: translateY(-1px); }
+        tbody tr:hover { background: var(--table-header); }
+        input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); }
+        .tour-hl { outline: 3px solid var(--accent); box-shadow: 0 0 0 9999px rgba(0,0,0,0.6); position: relative; z-index: 900; }
+        #tour-bar { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 1000; width: min(560px, 92vw); background: var(--card); border: 2px solid var(--accent); border-radius: 12px; padding: 14px 18px; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header>
+        <div>
+            <h1>Banania National Bank</h1>
+            <div class="motto">VIS ET FIDES &bull; Official Sovereign Treasury</div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button onclick="toggleDarkMode()" class="theme-btn" id="theme-toggle-btn">🌙 Dark Mode</button>
+        </div>
+    </header>
+
+    <nav id="top-nav" style="display: none;">
+        <span>User: <strong id="nav-user-code"></strong> (<span id="nav-user-role"></span>)</span>
+        <div>
+            <button id="nav-switch-btn" onclick="switchAdminView()" class="secondary" style="padding: 4px 10px; margin:0; display: none;">My Account</button>
+            <button onclick="startTour()" class="secondary" style="padding: 4px 10px; margin:0;">❓ Tour</button>
+            <button onclick="window.open('casino.html', '_blank')" class="accent" style="padding: 4px 10px; margin:0;">🎰 Casino</button>
+            <button onclick="showChangelog()" class="secondary" style="padding: 4px 10px; margin:0;">What's New</button>
+            <button onclick="lockWithPin()" class="accent" style="padding: 4px 10px; margin:0;">🔒 Lock (PIN)</button>
+            <button onclick="logout()" class="danger" style="padding: 4px 10px; margin:0;">Sign Out</button>
+        </div>
+    </nav>
+
+    <main>
+        <!-- AUTH VIEW -->
+        <div id="view-auth" class="view active">
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Sign In</h3>
+                    <form onsubmit="handleLogin(event); return false;" autocomplete="off">
+                        <label>Citizen ID or Code Number</label>
+                        <input type="text" id="login-id" name="login_citizen_code" placeholder="e.g. 001 or BN-2026-001" autocomplete="off" required>
+                        <label>Password</label>
+                        <input type="password" id="login-password" name="login_citizen_password" autocomplete="new-password" required>
+                        <button type="submit">Access Accounts</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <h3>Citizen Registration Briefing</h3>
+                    <form onsubmit="handleRegister(event); return false;" autocomplete="off">
+                        <label>Full Legal Name</label>
+                        <input type="text" id="reg-name" name="reg_full_name" placeholder="e.g. John Doe" autocomplete="off" required>
+                        <label>Citizen Code Number (3 Digits)</label>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <span style="font-weight: bold; font-size: 0.9rem;">BN-2026-</span>
+                            <input type="text" id="reg-num" name="reg_citizen_num" placeholder="e.g. 001" maxlength="3" pattern="[0-9]{3}" autocomplete="off" required>
+                        </div>
+                        <label>Password</label>
+                        <input type="password" id="reg-password" name="reg_account_password" autocomplete="new-password" required>
+                        <label>Create 4-Digit Security PIN</label>
+                        <input type="password" id="reg-pin" name="reg_account_pin" placeholder="1234" maxlength="4" pattern="[0-9]{4}" autocomplete="off" required>
+                        <button type="submit" class="accent">Submit Request for Clearance</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- PIN LOCK SCREEN -->
+        <div id="view-pin-lock" class="view">
+            <div class="card" style="max-width: 400px; margin: 40px auto; text-align: center;">
+                <h3>Session Locked</h3>
+                <p style="font-size: 0.85rem; color: var(--subtext); margin-bottom: 15px;">Inactivity threshold reached. Enter your 4-digit PIN to resume.</p>
+                <form onsubmit="handlePinUnlock(event); return false;" autocomplete="off">
+                    <input type="password" id="unlock-pin" placeholder="****" maxlength="4" pattern="[0-9]{4}" style="text-align: center; font-size: 1.5rem; letter-spacing: 5px;" required>
+                    <button type="submit" style="width: 100%;">Unlock Session</button>
+                </form>
+                <button onclick="logout()" class="danger" style="width: 100%; margin-top: 8px;">Log Out Completely</button>
+            </div>
+        </div>
+
+        <!-- BANNED VIEW -->
+        <div id="view-banned" class="view">
+            <div class="card" style="border-color: var(--danger);">
+                <h3 style="color: var(--danger);">Account Suspended / Under Royal Verification</h3>
+                <p><strong>Reason for Ban:</strong> <span id="ban-reason-text" style="color: var(--danger);"></span></p>
+                <hr style="margin: 15px 0; border: 0; border-top: 1px solid var(--border);">
+                <h4>Ban Appeal & Official Clearance Chat</h4>
+                <div class="chat-box" id="ban-chat-box"></div>
+                <form onsubmit="sendBanAppealMessage(event); return false;">
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="ban-chat-input" placeholder="Type appeal message to admin..." autocomplete="off" required>
+                        <button type="submit">Send</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- CITIZEN DASHBOARD -->
+        <div id="view-citizen" class="view">
+            <div class="grid-3">
+                <div class="card">
+                    <h3>Treasury Balance</h3>
+                    <div class="stat-val currency" id="cit-balance">Ɓ0 0c</div>
+                    <p style="font-size: 0.75rem; color: var(--subtext); margin-top: 4px;">1 Banano (Ɓ) = 100 Peels (c)</p>
+                </div>
+                <div class="card">
+                    <h3>Outstanding Debt</h3>
+                    <div class="stat-val" style="color: var(--danger);" id="cit-debt">Ɓ0 0c</div>
+                    <button onclick="payDebtPrompt()" style="margin-top: 6px; padding: 4px 8px; font-size: 0.8rem;">Pay Debt</button>
+                </div>
+                <div class="card">
+                    <h3>Theft Protection Insurance</h3>
+                    <p style="margin-top: 6px;">Status: <span id="cit-insurance-status" class="badge">None</span></p>
+                    <p style="margin-top: 6px; font-size: 0.8rem;">If you are robbed, the treasury pays you back. The fee is charged weekly; the policy lapses if you cannot pay.</p>
+                    <p style="margin-top: 6px;">Weekly salary: <strong id="cit-salary">Ɓ0 0c</strong></p>
+                    <button onclick="toggleInsurance()" id="insurance-btn" class="accent" style="margin-top: 10px; padding: 4px 8px; font-size: 0.8rem;">Subscribe / Unsubscribe</button>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Direct Transfer -->
+                <div class="card">
+                    <h3>Transfer Bananos & Peels</h3>
+                    <form onsubmit="handleTransfer(event); return false;" autocomplete="off">
+                        <label>Recipient Citizen ID</label>
+                        <input type="text" id="transfer-to" placeholder="e.g. BN-2026-001" autocomplete="off" required>
+                        <label>Amount (Ɓ.c)</label>
+                        <input type="number" step="0.01" id="transfer-amount" placeholder="e.g. 10.50 (Ɓ10 50c)" required>
+                        <div class="quick-preset-btns">
+                            <button type="button" class="quick-btn" onclick="setTransferAmt(1)">Ɓ1</button>
+                            <button type="button" class="quick-btn" onclick="setTransferAmt(5)">Ɓ5</button>
+                            <button type="button" class="quick-btn" onclick="setTransferAmt(10)">Ɓ10</button>
+                            <button type="button" class="quick-btn" onclick="setTransferAmt(50)">Ɓ50</button>
+                        </div>
+                        <button type="submit">Submit Transfer Request</button>
+                    </form>
+                </div>
+
+                <!-- Loan Wizard -->
+                <div class="card">
+                    <h3>Sovereign Loan Wizard</h3>
+                    <form onsubmit="handleLoanRequest(event); return false;">
+                        <label>Principal Amount (Ɓ)</label>
+                        <input type="number" step="0.01" id="loan-amount" oninput="calculateLoan()" placeholder="e.g. 50.00" required>
+                        <label>Repayment Term (Weeks)</label>
+                        <select id="loan-weeks" onchange="calculateLoan()">
+                            <option value="1">1 Week (5% Interest)</option>
+                            <option value="2">2 Weeks (10% Interest)</option>
+                            <option value="4">4 Weeks (20% Interest)</option>
+                            <option value="8">8 Weeks (35% Interest)</option>
+                        </select>
+                        <p style="font-size: 0.85rem; margin-top: 8px;">Total Repayment: <strong id="loan-total">Ɓ0 0c</strong></p>
+                        <button type="submit" class="accent">Apply for Loan Approval</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <!-- Physical ATM Cash Withdrawal -->
+                <div class="card">
+                    <h3>Physical ATM Cash Payout Request</h3>
+                    <p style="font-size: 0.8rem; color: var(--subtext);">Generates a 6-digit redemption token to claim physical banknotes / peels from an Admin in real life.</p>
+                    <form onsubmit="handleAtmRequest(event); return false;">
+                        <label>Amount to Withdraw (Ɓ.c)</label>
+                        <input type="number" step="0.01" id="atm-amount" placeholder="e.g. 20.50" required>
+                        <button type="submit">Generate Verification Token</button>
+                    </form>
+                    <div id="atm-token-display" style="margin-top: 10px;"></div>
+                </div>
+
+                <!-- Support Ticket -->
+                <div class="card">
+                    <h3>Support Tickets</h3>
+                    <form onsubmit="handleCreateTicket(event); return false;">
+                        <label>Subject</label>
+                        <input type="text" id="ticket-subject" required>
+                        <label>Message</label>
+                        <textarea id="ticket-message" rows="2" required></textarea>
+                        <button type="submit">Submit Ticket</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Financial Ledger -->
+            <div class="card">
+                <h3>
+                    <span>My Transactions History</span>
+                    <button onclick="exportStatementCSV()" class="secondary" style="padding: 4px 10px; font-size: 0.75rem; margin:0;">📥 Export CSV Statement</button>
+                </h3>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr><th>Date</th><th>Type</th><th>From/To</th><th>Amount</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="cit-tx-history"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN CONTROL PANEL -->
+        <div id="view-admin" class="view">
+            <h2 style="margin-bottom: 15px; color: var(--accent);">Royal Executive Control Panel</h2>
+
+            <!-- Analytics Dashboard -->
+            <div class="grid-4" style="margin-bottom: 15px;">
+                <div class="card" style="margin:0;">
+                    <div style="font-size: 0.8rem; color: var(--subtext);">Total Circulation</div>
+                    <div class="stat-val currency" id="admin-stat-circulation">Ɓ0 0c</div>
+                </div>
+                <div class="card" style="margin:0;">
+                    <div style="font-size: 0.8rem; color: var(--subtext);">Total National Debt</div>
+                    <div class="stat-val" style="color: var(--danger);" id="admin-stat-debt">Ɓ0 0c</div>
+                </div>
+                <div class="card" style="margin:0;">
+                    <div style="font-size: 0.8rem; color: var(--subtext);">Active Citizens</div>
+                    <div class="stat-val" id="admin-stat-citizens">0</div>
+                </div>
+                <div class="card" style="margin:0;">
+                    <div style="font-size: 0.8rem; color: var(--subtext);">Admin Personal Balance</div>
+                    <div class="stat-val currency" id="admin-personal-balance">Ɓ0 0c</div>
+                </div>
+            </div>
+
+            <!-- Pending Approvals & Physical ATM Cash Verification -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Pending Citizen Clearance Requests</h3>
+                    <div style="max-height: 180px; overflow-y: auto;">
+                        <table>
+                            <thead><tr><th>Citizen ID</th><th>Full Name</th><th>Actions</th></tr></thead>
+                            <tbody id="admin-pending-accounts"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card" style="border-left: 4px solid var(--accent);">
+                    <h3>ATM Cash Payout Verification</h3>
+                    <p style="font-size: 0.85rem; color: var(--subtext);">Enter the 6-digit token read to you by the citizen in real life to deduct digital funds and dispense real physical banknotes/peels.</p>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <input type="text" id="admin-atm-token" placeholder="Enter 6-Digit Token" maxlength="6">
+                        <button onclick="verifyAtmToken()" class="accent" style="margin:0;">Fulfill & Dispense</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Citizen Registry with Real-Time Search -->
+            <div class="card">
+                <h3>
+                    <span>Citizen Registry & Track Record</span>
+                    <span style="font-size: 0.8rem; color: var(--subtext); font-weight: normal;">Searchable Registry</span>
+                </h3>
+                <div class="search-bar">
+                    <input type="text" id="citizen-search-input" onkeyup="filterCitizenRegistry()" placeholder="🔍 Search citizens by ID, Name, Balance, or Status...">
+                </div>
+                <div style="max-height: 280px; overflow-y: auto;">
+                    <table id="citizen-table">
+                        <thead>
+                            <tr>
+                                <th>Citizen ID</th>
+                                <th>Name</th>
+                                <th>Balance (Ɓ & Peels)</th>
+                                <th>Debt</th>
+                                <th>Insured</th>
+                                <th>Salary / wk</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-citizen-registry"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Mass & Targeted Operations -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Mass Economic Actions</h3>
+                    <label>Mass Salary / Payout to ALL Citizens (Ɓ.c)</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" step="0.01" id="mass-payout-amt" placeholder="e.g. 50.00">
+                        <button onclick="handleMassPayout()" class="success" style="margin:0;">Distribute</button>
+                    </div>
+                    
+                    <label style="margin-top: 12px;">Mass Tax Collection from ALL Citizens (Ɓ.c)</label>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="number" step="0.01" id="mass-tax-amt" placeholder="e.g. 5.00">
+                        <button onclick="handleMassTax()" class="danger" style="margin:0;">Collect Tax</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Targeted Monetary Actions</h3>
+                    <form onsubmit="handleTargetMoney(event); return false;">
+                        <label>Target Citizen ID</label>
+                        <input type="text" id="target-id" placeholder="e.g. BN-2026-002" required>
+                        <label>Action</label>
+                        <select id="target-action">
+                            <option value="SALARY">Pay Salary (+)</option>
+                            <option value="TAX">Deduct Tax (-)</option>
+                        </select>
+                        <label>Amount (Ɓ.c)</label>
+                        <input type="number" step="0.01" id="target-amt" placeholder="e.g. 15.50" required>
+                        <button type="submit">Execute Action</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Pending Transfers & Loans Queue -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Pending Transfers Queue</h3>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <table>
+                            <thead><tr><th>From</th><th>To</th><th>Amount</th><th>Action</th></tr></thead>
+                            <tbody id="admin-pending-tx"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Pending Loan Applications</h3>
+                    <div style="max-height: 200px; overflow-y: auto;">
+                        <table>
+                            <thead><tr><th>Citizen</th><th>Amount</th><th>Repay</th><th>Action</th></tr></thead>
+                            <tbody id="admin-pending-loans"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Support Tickets & Ban Appeal Chats -->
+            <div class="grid-2">
+                <div class="card">
+                    <h3>Support Tickets Queue</h3>
+                    <div style="max-height: 220px; overflow-y: auto;" id="admin-tickets-container"></div>
+                </div>
+
+                <div class="card">
+                    <h3>Ban Appeal Live Chat Center</h3>
+                    <label>Select Banned Citizen</label>
+                    <select id="admin-banned-chat-select" onchange="loadAdminBanChat()"></select>
+                    <div class="chat-box" id="admin-ban-chat-box" style="margin-top: 10px;"></div>
+                    <form onsubmit="sendAdminBanMessage(event); return false;">
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="admin-ban-chat-input" placeholder="Type reply..." required>
+                            <button type="submit">Reply</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Maintenance -->
+            <div class="card">
+                <h3>🛠️ Maintenance Mode</h3>
+                <label>Message shown to citizens</label>
+                <input type="text" id="maint-msg" placeholder="We'll be back soon!">
+                <button onclick="setMaint('bank_maintenance')" id="maint-bank-btn" class="danger"></button>
+                <button onclick="setMaint('casino_maintenance')" id="maint-casino-btn" class="danger"></button>
+                <p style="margin-top: 6px; font-size: 0.8rem;">Admins can always get in. Closing the bank also closes the casino.</p>
+            </div>
+
+            <!-- Casino & Vault -->
+            <div class="card">
+                <h3>Casino Odds &amp; Bank Vault</h3>
+                <p>🏦 Vault balance: <strong id="vault-balance">Ɓ0</strong> (collects weekly tax, insurance fees and casino losses; pays casino wins)</p>
+                <button onclick="vaultMove('in')" class="secondary">Deposit from my account</button>
+                <button onclick="vaultMove('out')" class="secondary">Withdraw to my account</button>
+                <form onsubmit="saveCasino(event); return false;" style="margin-top: 12px;">
+                    <div class="grid-3"><div><label>🪙 Coin Flip: win chance % / payout ×</label><div style="display:flex;gap:6px;"><input type="number" step="0.1" min="0" max="100" id="odds-coin-chance"><input type="number" step="0.1" min="1" id="odds-coin-mult"></div></div><div><label>🎲 Lucky Dice: win chance % / payout ×</label><div style="display:flex;gap:6px;"><input type="number" step="0.1" min="0" max="100" id="odds-dice-chance"><input type="number" step="0.1" min="1" id="odds-dice-mult"></div></div><div><label>🎰 Jackpot Slots: win chance % / payout ×</label><div style="display:flex;gap:6px;"><input type="number" step="0.1" min="0" max="100" id="odds-slots-chance"><input type="number" step="0.1" min="1" id="odds-slots-mult"></div></div></div>
+                    <div class="grid-2">
+                        <div><label>Max bet (Ɓ)</label><input type="number" step="0.01" min="1" id="odds-max"></div>
+                        <div><label>Casino open?</label><select id="odds-enabled"><option value="1">Open</option><option value="0">Closed</option></select></div>
+                    </div>
+                    <button type="submit" class="accent">Save Casino Settings</button>
+                </form>
+            </div>
+
+            <!-- Glitch compensation -->
+            <div class="card">
+                <h3>Glitch Compensation &amp; Apology Notice</h3>
+                <form onsubmit="handleGlitch(event); return false;">
+                    <label>Message shown full-screen at next login</label>
+                    <textarea id="glitch-msg" rows="3" placeholder="e.g. A bug caused some transfers to fail. We're sorry!" required></textarea>
+                    <div class="grid-2">
+                        <div><label>Compensation per citizen (Ɓ, 0 = apology only)</label><input type="number" step="0.01" min="0" id="glitch-amt" value="0" required></div>
+                        <div><label>Who? (ALL, or codes like 002, 005)</label><input type="text" id="glitch-targets" value="ALL"></div>
+                    </div>
+                    <button type="submit" class="accent">Send Glitch Notice</button>
+                </form>
+            </div>
+
+            <!-- Transfer limit -->
+            <div class="card">
+                <h3>Transfer Approval Limit</h3>
+                <form onsubmit="saveTransferLimit(event); return false;">
+                    <label>Transfers up to this amount are instant; larger ones wait for admin approval (Ɓ)</label>
+                    <input type="number" step="0.01" min="0" id="transfer-limit" required>
+                    <button type="submit">Save Limit</button>
+                </form>
+            </div>
+
+            <!-- Payroll -->
+            <div class="card">
+                <h3>Weekly Salaries &amp; Payroll Cycle</h3>
+                <form onsubmit="handleSetSalary(event); return false;">
+                    <div class="grid-3">
+                        <div><label>Citizen Code</label><input type="text" id="salary-id" placeholder="e.g. 004" required></div>
+                        <div><label>Weekly Salary (Ɓ, 0 = none)</label><input type="number" step="0.01" min="0" id="salary-amt" required></div>
+                        <div style="align-self: end;"><button type="submit">Set Salary</button></div>
+                    </div>
+                </form>
+                <p style="margin-top: 12px;"><label><input type="checkbox" id="setting-auto-cycle" onchange="toggleAutoCycle()" style="width: auto; display: inline; margin-right: 6px;">Run the weekly cycle automatically (pays salaries, collects tax and insurance fees)</label></p>
+                <p id="cycle-info" style="margin-top: 6px; font-size: 0.85rem;"></p>
+                <button onclick="runCycleNow()" class="accent" style="margin-top: 8px;">Run Weekly Cycle Now</button>
+            </div>
+
+            <!-- Theft -->
+            <div class="card">
+                <h3>Record Theft Incident</h3>
+                <form onsubmit="handleTheft(event); return false;">
+                    <div class="grid-3">
+                        <div><label>Victim Code</label><input type="text" id="theft-victim" required></div>
+                        <div><label>Thief Code (optional)</label><input type="text" id="theft-thief"></div>
+                        <div><label>Amount (Ɓ)</label><input type="number" step="0.01" min="0" id="theft-amt" required></div>
+                    </div>
+                    <button type="submit" class="danger">Record Theft</button>
+                </form>
+                <p style="margin-top: 6px; font-size: 0.8rem;">Insured victims are reimbursed by the treasury; uninsured victims lose the money.</p>
+            </div>
+
+            <!-- Settings -->
+            <div class="card">
+                <h3>Global Treasury Settings</h3>
+                <form onsubmit="handleUpdateSettings(event); return false;">
+                    <div class="grid-3">
+                        <div>
+                            <label>Auto-Accept Transfers (Minutes)</label>
+                            <input type="number" id="setting-auto-accept" required>
+                        </div>
+                        <div>
+                            <label>Weekly Tax Rate (%)</label>
+                            <input type="number" step="0.01" id="setting-tax-rate" required>
+                        </div>
+                        <div>
+                            <label>Weekly Insurance Fee (Ɓ)</label>
+                            <input type="number" step="0.01" id="setting-insurance-fee" required>
+                        </div>
+                    </div>
+                    <button type="submit">Save System Settings</button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <div id="tour-bar" style="display:none"></div>
+    <div id="overlay" class="overlay"><div id="overlay-box" class="overlay-box"></div></div>
+    <footer>
+        <p><a href="#" onclick="showChangelog(); return false;" style="color: var(--accent);">What's New (Changelog)</a></p>
+        Official Master Archive: BN-LAW-2026-ALPHA &bull; 1 Banano (Ɓ) = 100 Peels (c) &bull; Fixed Treasury Standard<br>
+        Exchange Rates: Ɓ1 = £1.00 / $1.25 / €1.15
+    </footer>
+</div>
+
+<script>
+    // ==========================================
+    // 1. CONFIGURATION & INITIALIZATION
+    // ==========================================
+    const SUPABASE_URL = "https://rqxrpksjgxzcamkwvzyn.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxeHJwa3NqZ3h6Y2Fta3d2enluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODY4MTgsImV4cCI6MjEwNjM2MjgxOH0.a4su8LpHd6v1E-8j0jABfHA-9vOOldaUQBexzbPotOE";
+    
+    let supabaseClient = null;
+    let currentUser = null;
+    let autoLockTimer = null;
+
+    // XSS Sanitizer Helper Function
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>'"]/g, tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag));
+    }
+
+    // Currency Formatter for Bananos (Ɓ) and Peels (c)
+    function formatMoney(amount) {
+        const val = parseFloat(amount) || 0;
+        const totalPeels = Math.round(val * 100);
+        const bananos = Math.floor(Math.abs(totalPeels) / 100);
+        const peels = Math.abs(totalPeels) % 100;
+        const sign = totalPeels < 0 ? '-' : '';
+        return `${sign}Ɓ${bananos} ${peels}c`;
+    }
+
+    // Dark Mode Toggle
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('banania_theme', isDark ? 'dark' : 'light');
+        document.getElementById('theme-toggle-btn').innerText = isDark ? '☀️ Light Mode' : '🌙 Dark Mode';
+    }
+
+    if (localStorage.getItem('banania_theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+        document.getElementById('theme-toggle-btn').innerText = '☀️ Light Mode';
+    }
+
+    // Shows the real database error whenever a save/update/delete fails
+    function wrapWrites(c) {
+        const origFrom = c.from.bind(c);
+        c.from = (table) => {
+            const qb = origFrom(table);
+            ['insert', 'update', 'delete', 'upsert'].forEach(m => {
+                if (typeof qb[m] !== 'function') return;
+                const orig = qb[m].bind(qb);
+                qb[m] = (...args) => {
+                    const b = orig(...args);
+                    // citizens/transactions inserts already show their own error
+                    if (m === 'insert' && (table === 'citizens' || table === 'transactions' || table === 'glitch_notices')) return b;
+                    const origThen = b.then.bind(b);
+                    b.then = (res, rej) => origThen(r => {
+                        if (r && r.error) alert('Database error (' + m + ' on ' + table + '): ' + r.error.message);
+                        return res ? res(r) : r;
+                    }, rej);
+                    return b;
+                };
+            });
+            return qb;
+        };
+        return c;
+    }
+
+    function getClient() {
+        if (!supabaseClient) {
+            if (SUPABASE_URL === "YOUR_SUPABASE_URL" || !SUPABASE_URL) {
+                alert("Please configure your Supabase URL and Anon Key.");
+                return null;
+            }
+            const { createClient } = window.supabase;
+            supabaseClient = wrapWrites(createClient(SUPABASE_URL, SUPABASE_ANON_KEY));
+        }
+        return supabaseClient;
+    }
+
+    function resetInactivityTimer() {
+        clearTimeout(autoLockTimer);
+        if (currentUser && !document.getElementById('view-pin-lock').classList.contains('active')) {
+            autoLockTimer = setTimeout(() => { lockWithPin(); }, 300000); // 5 Minutes
+        }
+    }
+    window.onload = resetInactivityTimer;
+    document.onmousemove = resetInactivityTimer;
+    document.onkeypress = resetInactivityTimer;
+
+    function showView(viewId) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(viewId).classList.add('active');
+        
+        if (currentUser) {
+            document.getElementById('top-nav').style.display = 'flex';
+            // Corrected: directly set innerText without double escaping
+            document.getElementById('nav-user-code').innerText = currentUser.citizen_id;
+            document.getElementById('nav-user-role').innerText = currentUser.role;
+        } else {
+            document.getElementById('top-nav').style.display = 'none';
+        }
+    }
+
+    function formatCitizenId(rawInput) {
+        const clean = rawInput.trim();
+        if (clean.toUpperCase().startsWith('BN-2026-')) return clean.toUpperCase();
+        const digits = clean.replace(/\D/g, '').padStart(3, '0');
+        return `BN-2026-${digits}`;
+    }
+
+    function filterCitizenRegistry() {
+        const query = document.getElementById('citizen-search-input').value.toLowerCase();
+        const rows = document.querySelectorAll('#admin-citizen-registry tr');
+        rows.forEach(row => {
+            const text = row.innerText.toLowerCase();
+            row.style.display = text.includes(query) ? '' : 'none';
+        });
+    }
+
+    function setTransferAmt(amount) {
+        document.getElementById('transfer-amount').value = amount;
+    }
+
+    // Export Statement to CSV
+    function exportStatementCSV() {
+        const table = document.querySelector('#cit-tx-history');
+        let csv = ["Date,Type,Party,Amount,Status"];
+        const rows = table.querySelectorAll('tr');
+        rows.forEach(r => {
+            const cols = r.querySelectorAll('td');
+            if (cols.length) {
+                const rowData = Array.from(cols).map(c => `"${c.innerText.replace(/"/g, '""')}"`);
+                csv.push(rowData.join(','));
+            }
+        });
+        const blob = new Blob([csv.join('\n')], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Banania_Statement_${currentUser.citizen_id}.csv`;
+        a.click();
+    }
+
+    // ==========================================
+    // 2. AUTHENTICATION & LOGIN
+    // ==========================================
+    async function handleLogin(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        try {
+            const rawId = document.getElementById('login-id').value;
+            const fullId = formatCitizenId(rawId);
+            const pwd = document.getElementById('login-password').value.trim();
+
+            const { data: user, error } = await client
+                .from('citizens')
+                .select('*')
+                .eq('citizen_id', fullId)
+                .maybeSingle();
+
+            if (error) {
+                alert(`Supabase Error (${error.code}): ${error.message}`);
+                return;
+            }
+
+            if (!user) {
+                alert(`No citizen found with ID: ${fullId}`);
+                return;
+            }
+
+            if (user.password !== pwd) {
+                alert(`Incorrect password for ${fullId}.`);
+                return;
+            }
+
+            // Reject if role is PENDING
+            if (user.role === 'PENDING') {
+                alert("Your account is pending Royal Clearance. Please wait for an Admin to approve your registration.");
+                return;
+            }
+
+            const stM = await getSettings();
+            if (stM.bank_maintenance && user.role !== 'ADMIN') {
+                showOverlay(`<h2>🛠️ Closed for maintenance</h2><p style="margin:12px 0;">${escapeHTML(stM.maintenance_msg || 'The bank is closed for maintenance. Please check back soon.')}</p><button onclick="closeOverlay()">OK</button>`);
+                return;
+            }
+
+            currentUser = user;
+
+            if (currentUser.is_banned) {
+                showView('view-banned');
+                // Corrected: directly set innerText without double escaping
+                document.getElementById('ban-reason-text').innerText = currentUser.ban_reason || "Violation of Royal Law.";
+                loadBanChatMessages();
+                return;
+            }
+
+            await runWeeklyCycleIfDue();
+
+            routeUserDashboard();
+            await runLoginExtras();
+        } catch (err) {
+            alert("Error logging in: " + err.message);
+        }
+    }
+
+    async function handleRegister(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        try {
+            const name = document.getElementById('reg-name').value.trim();
+            const num = document.getElementById('reg-num').value.trim();
+            const pwd = document.getElementById('reg-password').value.trim();
+            const pin = document.getElementById('reg-pin').value.trim();
+            const citizen_id = formatCitizenId(num);
+
+            const { error } = await client.from('citizens').insert([{
+                citizen_id,
+                full_name: name,
+                password: pwd,
+                vault_pin: pin,
+                role: 'PENDING', is_banned: false, balance: 0, debt: 0, has_insurance: false
+            }]);
+
+            if (error) {
+                alert("Registration failed: " + error.message);
+            } else {
+                alert(`Registration submitted for ${citizen_id}! Contact an Admin to clear and approve your account.`);
+                document.getElementById('reg-name').value = '';
+                document.getElementById('reg-num').value = '';
+                document.getElementById('reg-password').value = '';
+                document.getElementById('reg-pin').value = '';
+            }
+        } catch (err) {
+            alert("Error registering: " + err.message);
+        }
+    }
+
+    function routeUserDashboard() {
+        const sw = document.getElementById('nav-switch-btn');
+        sw.style.display = currentUser.role === 'ADMIN' ? '' : 'none';
+        sw.innerText = 'My Account';
+        if (currentUser.role === 'ADMIN') {
+            showView('view-admin');
+            loadAdminData();
+        } else {
+            showView('view-citizen');
+            loadCitizenData();
+        }
+    }
+
+    function lockWithPin() { showView('view-pin-lock'); }
+
+    function handlePinUnlock(e) {
+        if (e) e.preventDefault();
+        const pin = document.getElementById('unlock-pin').value.trim();
+        if (pin === currentUser.vault_pin) {
+            document.getElementById('unlock-pin').value = '';
+            routeUserDashboard();
+        } else {
+            alert("Incorrect Security PIN.");
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        showView('view-auth');
+    }
+
+    // ==========================================
+    // 3. CITIZEN DASHBOARD FUNCTIONS
+    // ==========================================
+    async function loadCitizenData() {
+        const client = getClient();
+        if (!client) return;
+
+        const { data: user } = await client.from('citizens').select('*').eq('citizen_id', currentUser.citizen_id).single();
+        if (user) currentUser = user;
+
+        document.getElementById('cit-balance').innerText = formatMoney(currentUser.balance);
+        document.getElementById('cit-debt').innerText = formatMoney(currentUser.debt);
+        
+        const insBadge = document.getElementById('cit-insurance-status');
+        insBadge.innerText = currentUser.has_insurance ? "ACTIVE" : "NONE";
+        insBadge.className = `badge ${currentUser.has_insurance ? 'active' : ''}`;
+        document.getElementById('cit-salary').innerText = formatMoney(currentUser.weekly_salary || 0) + ' / week';
+
+        const { data: txs } = await client.from('transactions')
+            .select('*')
+            .or(`sender_id.eq.${currentUser.citizen_id},receiver_id.eq.${currentUser.citizen_id}`)
+            .order('created_at', { ascending: false });
+
+        const tbody = document.getElementById('cit-tx-history');
+        tbody.innerHTML = '';
+        (txs || []).forEach(tx => {
+            const isSender = tx.sender_id === currentUser.citizen_id;
+            tbody.innerHTML += `
+                <tr>
+                    <td>${new Date(tx.created_at).toLocaleDateString()}</td>
+                    <td>${escapeHTML(tx.type)}</td>
+                    <td>${isSender ? 'To: ' + escapeHTML(tx.receiver_id) : 'From: ' + escapeHTML(tx.sender_id)}</td>
+                    <td class="currency">${isSender ? '-' : '+'}${formatMoney(tx.amount)}</td>
+                    <td><span class="badge ${escapeHTML(tx.status).toLowerCase()}">${escapeHTML(tx.status)}</span></td>
+                </tr>
+            `;
+        });
+    }
+
+
+    function calculateLoan() {
+        const amt = parseFloat(document.getElementById('loan-amount').value) || 0;
+        const weeks = parseInt(document.getElementById('loan-weeks').value);
+        let rates = { 1: 0.05, 2: 0.10, 4: 0.20, 8: 0.35 };
+        const total = amt + (amt * rates[weeks]);
+        document.getElementById('loan-total').innerText = formatMoney(total);
+    }
+
+    async function handleLoanRequest(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        const amt = parseFloat(document.getElementById('loan-amount').value);
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+
+        const weeks = parseInt(document.getElementById('loan-weeks').value);
+        let rates = { 1: 0.05, 2: 0.10, 4: 0.20, 8: 0.35 };
+        const total = amt + (amt * rates[weeks]);
+
+        await client.from('loans').insert([{
+            citizen_id: currentUser.citizen_id,
+            principal: amt,
+            interest_rate: rates[weeks] * 100,
+            duration_weeks: weeks,
+            total_repayment: total,
+            status: 'PENDING_ADMIN'
+        }]);
+
+        alert("Loan application submitted for Admin approval.");
+        document.getElementById('loan-amount').value = '';
+    }
+
+    async function handleAtmRequest(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+
+        const amt = parseFloat(document.getElementById('atm-amount').value);
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+        if (amt > currentUser.balance) { alert("Insufficient balance."); return; }
+
+        const token = Math.floor(100000 + Math.random() * 900000).toString();
+        await client.from('atm_tokens').insert([{
+            citizen_id: currentUser.citizen_id,
+            amount: amt,
+            token_code: token,
+            status: 'PENDING'
+        }]);
+
+        document.getElementById('atm-token-display').innerHTML = `
+            <div style="background:var(--table-header); border:1px solid var(--border); padding:10px; border-radius:4px; text-align:center;">
+                Read this token to Admin in real life:<br>
+                <strong style="font-size:1.4rem; letter-spacing:3px; color:var(--accent);">${token}</strong>
+            </div>
+        `;
+    }
+
+    async function toggleInsurance() {
+        const client = getClient();
+        if (!client) return;
+        const newStatus = !currentUser.has_insurance;
+        await client.from('citizens').update({ has_insurance: newStatus }).eq('citizen_id', currentUser.citizen_id);
+        loadCitizenData();
+    }
+
+
+    async function handleCreateTicket(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        await client.from('support_tickets').insert([{
+            citizen_id: currentUser.citizen_id,
+            subject: document.getElementById('ticket-subject').value,
+            message: document.getElementById('ticket-message').value
+        }]);
+        alert("Support ticket submitted.");
+        document.getElementById('ticket-subject').value = '';
+        document.getElementById('ticket-message').value = '';
+    }
+
+    // ==========================================
+    // 4. ADMIN CONTROL FUNCTIONS & ANALYTICS
+    // ==========================================
+    async function loadAdminData() {
+        const client = getClient();
+        if (!client) return;
+
+        document.getElementById('admin-personal-balance').innerText = formatMoney(currentUser.balance);
+
+        // Calculate Global Analytics Stats
+        const { data: allCitizens } = await client.from('citizens').select('*');
+        let totalCirc = 0, totalDebt = 0, activeCount = 0;
+        (allCitizens || []).forEach(c => {
+            totalCirc += parseFloat(c.balance || 0);
+            totalDebt += parseFloat(c.debt || 0);
+            if (!c.is_banned && c.role !== 'PENDING') activeCount++;
+        });
+        document.getElementById('admin-stat-circulation').innerText = formatMoney(totalCirc);
+        document.getElementById('admin-stat-debt').innerText = formatMoney(totalDebt);
+        document.getElementById('admin-stat-citizens').innerText = activeCount;
+
+        // Pending Accounts Clearance
+        const { data: pendingAccs } = await client.from('citizens').select('*').eq('role', 'PENDING');
+        const pendingTbody = document.getElementById('admin-pending-accounts');
+        pendingTbody.innerHTML = '';
+        (pendingAccs || []).forEach(acc => {
+            pendingTbody.innerHTML += `
+                <tr>
+                    <td>${escapeHTML(acc.citizen_id)}</td>
+                    <td>${escapeHTML(acc.full_name)}</td>
+                    <td><button onclick="approveAccount('${escapeHTML(acc.citizen_id)}')" class="success" style="padding: 2px 6px;">Clear / Approve</button> <button onclick="declineAccount('${escapeHTML(acc.citizen_id)}')" class="danger" style="padding: 2px 6px;">Decline</button></td>
+                </tr>
+            `;
+        });
+
+        // Pending Transfers Queue
+        const { data: pendingTxs } = await client.from('transactions').select('*').eq('status', 'PENDING');
+        const txTbody = document.getElementById('admin-pending-tx');
+        txTbody.innerHTML = '';
+        (pendingTxs || []).forEach(tx => {
+            txTbody.innerHTML += `
+                <tr>
+                    <td>${escapeHTML(tx.sender_id)}</td><td>${escapeHTML(tx.receiver_id)}</td><td>${formatMoney(tx.amount)}</td>
+                    <td>
+                        <button onclick="resolveTx('${tx.id}', 'APPROVED')" class="success" style="padding: 2px 6px;">✓</button>
+                        <button onclick="resolveTx('${tx.id}', 'REJECTED')" class="danger" style="padding: 2px 6px;">✗</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        // Pending Loan Applications
+        const { data: pendingLoans } = await client.from('loans').select('*').eq('status', 'PENDING_ADMIN');
+        const loanTbody = document.getElementById('admin-pending-loans');
+        loanTbody.innerHTML = '';
+        (pendingLoans || []).forEach(l => {
+            loanTbody.innerHTML += `
+                <tr>
+                    <td>${escapeHTML(l.citizen_id)}</td><td>${formatMoney(l.principal)}</td><td>${formatMoney(l.total_repayment)}</td>
+                    <td>
+                        <button onclick="resolveLoan('${l.id}', '${escapeHTML(l.citizen_id)}', ${l.principal}, ${l.total_repayment}, true)" class="success" style="padding: 2px 6px;">Approve</button>
+                        <button onclick="resolveLoan('${l.id}', '${escapeHTML(l.citizen_id)}', 0, 0, false)" class="danger" style="padding: 2px 6px;">Reject</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        // Citizen Registry (Fixed unban syntax typo)
+        const regTbody = document.getElementById('admin-citizen-registry');
+        regTbody.innerHTML = '';
+        const bannedSelect = document.getElementById('admin-banned-chat-select');
+        bannedSelect.innerHTML = '<option value="">Select Citizen</option>';
+
+        (allCitizens || []).forEach(c => {
+            if (c.is_banned) {
+                bannedSelect.innerHTML += `<option value="${escapeHTML(c.citizen_id)}">${escapeHTML(c.citizen_id)} - ${escapeHTML(c.full_name)}</option>`;
+            }
+            regTbody.innerHTML += `
+                <tr>
+                    <td>${escapeHTML(c.citizen_id)}</td>
+                    <td>${escapeHTML(c.full_name)}</td>
+                    <td>${formatMoney(c.balance)}</td>
+                    <td>${formatMoney(c.debt)}</td>
+                    <td>${c.has_insurance ? 'YES' : 'NO'}</td>
+                    <td>${formatMoney(c.weekly_salary || 0)}</td>
+                    <td><span class="badge ${c.is_banned ? 'banned' : (c.role === 'PENDING' ? 'pending' : 'active')}">${c.is_banned ? 'BANNED' : c.role}</span></td>
+                    <td>
+                        ${c.is_banned ? 
+                            `<button onclick="unbanCitizen('${escapeHTML(c.citizen_id)}')" class="success" style="padding: 2px 6px;">Unban</button>` : 
+                            `<button onclick="banCitizenPrompt('${escapeHTML(c.citizen_id)}')" class="danger" style="padding: 2px 6px;">Ban</button>`
+                        }
+                    </td>
+                </tr>
+            `;
+        });
+
+        // Load Support Tickets
+        const { data: tickets } = await client.from('support_tickets').select('*').order('created_at', { ascending: false });
+        const tContainer = document.getElementById('admin-tickets-container');
+        tContainer.innerHTML = '';
+        (tickets || []).forEach(t => {
+            tContainer.innerHTML += `
+                <div style="border-bottom: 1px solid var(--border); padding: 6px 0;">
+                    <strong>[${escapeHTML(t.citizen_id)}] ${escapeHTML(t.subject)}</strong>
+                    <p style="font-size:0.8rem; color:var(--subtext);">${escapeHTML(t.message)}</p>
+                </div>
+            `;
+        });
+
+        // Load Settings
+        const { data: st } = await client.from('bank_settings').select('*').eq('id', 1).single();
+        if (st) {
+            document.getElementById('setting-auto-accept').value = st.auto_accept_minutes;
+            document.getElementById('setting-tax-rate').value = st.weekly_tax_rate;
+            document.getElementById('setting-insurance-fee').value = st.weekly_insurance_cost;
+            document.getElementById('setting-auto-cycle').checked = !!st.auto_cycle;
+            document.getElementById('transfer-limit').value = st.transfer_limit != null ? st.transfer_limit : 1000;
+            fillAdminCasino(st);
+            fillMaint(st);
+            const lastC = st.last_cycle_at ? new Date(st.last_cycle_at) : null;
+            document.getElementById('cycle-info').innerText = (st.auto_cycle ? 'Automatic: ON. ' : 'Automatic: OFF. ') +
+                (lastC ? 'Last run: ' + lastC.toLocaleString() + '. Next due: ' + new Date(lastC.getTime() + 604800000).toLocaleString() + '. ' : 'Not run yet. ') +
+                (st.last_cycle_summary ? 'Last result: ' + st.last_cycle_summary : '');
+        }
+    }
+
+
+
+
+
+
+    async function resolveLoan(loanId, citId, principal, totalRepay, approve) {
+        const client = getClient();
+        if (!client) return;
+        if (approve) {
+            const { data: user } = await client.from('citizens').select('*').eq('citizen_id', citId).single();
+            await client.from('citizens').update({
+                balance: parseFloat(user.balance) + parseFloat(principal),
+                debt: parseFloat(user.debt) + parseFloat(totalRepay)
+            }).eq('citizen_id', citId);
+            await client.from('loans').update({ status: 'APPROVED' }).eq('id', loanId);
+            await logTx('TREASURY', citId, parseFloat(principal), 'LOAN');
+            await vaultAdd(-parseFloat(principal));
+        } else {
+            await client.from('loans').update({ status: 'REJECTED' }).eq('id', loanId);
+        }
+        loadAdminData();
+    }
+
+
+    async function banCitizenPrompt(id) {
+        const client = getClient();
+        if (!client) return;
+        const reason = prompt(`Enter reason for banning ${id}:`);
+        if (!reason) return;
+        await client.from('citizens').update({ is_banned: true, ban_reason: reason }).eq('citizen_id', id);
+        loadAdminData();
+    }
+
+    async function unbanCitizen(id) {
+        const client = getClient();
+        if (!client) return;
+        await client.from('citizens').update({ is_banned: false, ban_reason: null }).eq('citizen_id', id);
+        loadAdminData();
+    }
+
+    async function handleUpdateSettings(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        await client.from('bank_settings').update({
+            auto_accept_minutes: parseInt(document.getElementById('setting-auto-accept').value),
+            weekly_tax_rate: parseFloat(document.getElementById('setting-tax-rate').value),
+            weekly_insurance_cost: parseFloat(document.getElementById('setting-insurance-fee').value)
+        }).eq('id', 1);
+        alert("Global Bank Settings updated.");
+    }
+
+
+    // ==========================================
+    // 6. WEEKLY CYCLE, SALARIES, INSURANCE & THEFT
+    // ==========================================
+    const r2 = n => Math.round(n * 100) / 100;
+
+    // Pays salaries, collects tax + insurance fees. Catches up on missed weeks.
+    // Only one browser can "claim" a given week, so nobody gets paid twice.
+    async function runWeeklyCycleIfDue(force) {
+        try {
+            const client = getClient();
+            if (!client) return null;
+            const { data: st } = await client.from('bank_settings').select('*').eq('id', 1).single();
+            if (!st || (!force && !st.auto_cycle)) return null;
+            const WEEK = 604800000, now = Date.now();
+            const last = st.last_cycle_at ? new Date(st.last_cycle_at).getTime() : null;
+            if (last === null && !force) {   // first time: just start the clock
+                await client.from('bank_settings').update({ last_cycle_at: new Date(now).toISOString() }).eq('id', 1).is('last_cycle_at', null);
+                return null;
+            }
+            const weeks = force ? 1 : Math.floor((now - last) / WEEK);
+            if (weeks < 1) return null;
+            const newLast = new Date(force || last === null ? now : last + weeks * WEEK).toISOString();
+            let q = client.from('bank_settings').update({ last_cycle_at: newLast }).eq('id', 1);
+            q = st.last_cycle_at ? q.eq('last_cycle_at', st.last_cycle_at) : q.is('last_cycle_at', null);
+            const { data: won } = await q.select();
+            if (!won || !won.length) return null;   // someone else already ran it
+
+            const taxRate = (parseFloat(st.weekly_tax_rate) || 0) / 100, fee = parseFloat(st.weekly_insurance_cost) || 0;
+            const { data: cits } = await client.from('citizens').select('*').neq('role', 'PENDING').or('is_banned.is.null,is_banned.eq.false');
+            let paid = 0, taxed = 0, premiums = 0, lapsed = 0;
+            for (const c of (cits || [])) {
+                const start = parseFloat(c.balance) || 0;
+                let bal = start;
+                const upd = {};
+                const sal = r2((parseFloat(c.weekly_salary) || 0) * weeks);
+                if (sal > 0) { bal += sal; paid += sal; await logTx('TREASURY', c.citizen_id, sal, 'SALARY'); }
+                if (c.role === 'CITIZEN') {
+                    if (taxRate > 0) { const t = Math.min(bal, r2(bal * taxRate * weeks)); bal -= t; taxed += t; if (t > 0) await logTx(c.citizen_id, 'TREASURY', t, 'WEEKLY TAX'); }
+                    if (c.has_insurance && fee > 0) {
+                        const f = r2(fee * weeks);
+                        if (bal >= f) { bal -= f; premiums += f; await logTx(c.citizen_id, 'TREASURY', f, 'INSURANCE'); } else { upd.has_insurance = false; lapsed++; }
+                    }
+                }
+                bal = r2(bal);
+                if (bal !== start) upd.balance = bal;
+                if (Object.keys(upd).length) await client.from('citizens').update(upd).eq('citizen_id', c.citizen_id);
+            }
+            await vaultAdd(taxed + premiums);
+            const summary = `${weeks} week(s): salaries ${formatMoney(paid)}, tax ${formatMoney(taxed)}, insurance fees ${formatMoney(premiums)}, ${lapsed} policy(ies) lapsed.`;
+            await client.from('bank_settings').update({ last_cycle_summary: summary }).eq('id', 1);
+            return summary;
+        } catch (err) {
+            console.error('Weekly cycle error:', err);
+            return null;
+        }
+    }
+
+    async function toggleAutoCycle() {
+        const client = getClient();
+        if (!client) return;
+        const on = document.getElementById('setting-auto-cycle').checked;
+        await client.from('bank_settings').update({ auto_cycle: on }).eq('id', 1);
+        if (on) await runWeeklyCycleIfDue();
+        loadAdminData();
+    }
+
+    async function runCycleNow() {
+        if (!confirm('Run one full weekly cycle right now? This pays salaries and collects tax and insurance fees immediately.')) return;
+        const summary = await runWeeklyCycleIfDue(true);
+        alert(summary ? 'Weekly cycle complete: ' + summary : 'Cycle did not run. Check the database columns were added.');
+        loadAdminData();
+    }
+
+    async function handleSetSalary(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const id = formatCitizenId(document.getElementById('salary-id').value);
+        const amt = parseFloat(document.getElementById('salary-amt').value);
+        if (!(amt >= 0)) { alert('Please enter a salary of 0 or more.'); return; }
+        const { data: user } = await client.from('citizens').select('citizen_id').eq('citizen_id', id).single();
+        if (!user) { alert('Citizen not found.'); return; }
+        await client.from('citizens').update({ weekly_salary: r2(amt) }).eq('citizen_id', id);
+        alert(`${id} now earns ${formatMoney(amt)} per week.`);
+        document.getElementById('salary-id').value = '';
+        document.getElementById('salary-amt').value = '';
+        loadAdminData();
+    }
+
+    async function handleTheft(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const vid = formatCitizenId(document.getElementById('theft-victim').value);
+        const tRaw = document.getElementById('theft-thief').value.trim();
+        const amt = parseFloat(document.getElementById('theft-amt').value);
+        if (!(amt > 0)) { alert('Please enter a valid amount greater than 0.'); return; }
+        const { data: v } = await client.from('citizens').select('*').eq('citizen_id', vid).single();
+        if (!v) { alert('Victim not found.'); return; }
+        let thief = null;
+        if (tRaw) {
+            const { data: t } = await client.from('citizens').select('*').eq('citizen_id', formatCitizenId(tRaw)).single();
+            if (!t) { alert('Thief not found.'); return; }
+            thief = t;
+        }
+        const stolen = Math.min(amt, parseFloat(v.balance) || 0);
+        if (!v.has_insurance) await client.from('citizens').update({ balance: r2((parseFloat(v.balance) || 0) - stolen) }).eq('citizen_id', vid);
+        if (thief) await client.from('citizens').update({ balance: r2((parseFloat(thief.balance) || 0) + stolen) }).eq('citizen_id', thief.citizen_id);
+        if (stolen > 0) await logTx(vid, thief ? thief.citizen_id : 'UNKNOWN THIEF', stolen, 'THEFT');
+        if (v.has_insurance && stolen > 0) { await logTx('TREASURY', vid, stolen, 'INSURANCE PAYOUT'); await vaultAdd(-stolen); }
+        alert(v.has_insurance
+            ? `Theft recorded. ${vid} is insured, so the treasury covered the loss of ${formatMoney(stolen)}.`
+            : `Theft recorded. ${vid} lost ${formatMoney(stolen)}${thief ? ' to ' + thief.citizen_id : ''}.`);
+        document.getElementById('theft-victim').value = '';
+        document.getElementById('theft-thief').value = '';
+        document.getElementById('theft-amt').value = '';
+        loadAdminData();
+    }
+
+
+    // ==========================================
+    // 7. LEDGER, TRANSFERS, ATM, ADMIN MONEY (rewritten), NOTICES, CHANGELOG
+    // ==========================================
+    // Records a completed movement in everyone's transaction history ('TREASURY' = the bank itself)
+    async function logTx(sender, receiver, amount, type) {
+        const { error } = await getClient().from('transactions').insert([{ sender_id: sender, receiver_id: receiver, amount: r2(amount), type, status: 'APPROVED' }]);
+        if (error && !window._txWarned) {
+            window._txWarned = true;
+            alert('Money moved, but the history entry could not be saved: ' + error.message);
+        }
+    }
+
+    async function getCitizen(client, id) {
+        const { data } = await client.from('citizens').select('*').eq('citizen_id', id).single();
+        return data;
+    }
+
+    // Instant when small; queued for admin when above the limit. Never loses money.
+    async function handleTransfer(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const to = formatCitizenId(document.getElementById('transfer-to').value);
+        const amt = r2(parseFloat(document.getElementById('transfer-amount').value));
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+        if (to === currentUser.citizen_id) { alert("You can't send money to yourself."); return; }
+        const me = await getCitizen(client, currentUser.citizen_id);
+        const rcv = await getCitizen(client, to);
+        if (!rcv || rcv.role === 'PENDING') { alert("Recipient not found. Check the citizen code."); return; }
+        if (amt > (parseFloat(me.balance) || 0)) { alert("Insufficient balance."); return; }
+        const { data: st } = await client.from('bank_settings').select('*').eq('id', 1).single();
+        const limit = st && st.transfer_limit != null ? parseFloat(st.transfer_limit) : 1000;
+
+        if (amt > limit) {
+            const { error } = await client.from('transactions').insert([{ sender_id: me.citizen_id, receiver_id: to, amount: amt, type: 'TRANSFER', status: 'PENDING' }]);
+            if (error) { alert("Transfer failed: " + error.message); return; }
+            alert(`Transfers over ${formatMoney(limit)} need admin approval. Your request is pending.`);
+        } else {
+            let r = await client.from('citizens').update({ balance: r2((parseFloat(me.balance) || 0) - amt) }).eq('citizen_id', me.citizen_id);
+            if (r.error) return;
+            r = await client.from('citizens').update({ balance: r2((parseFloat(rcv.balance) || 0) + amt) }).eq('citizen_id', to);
+            if (r.error) {   // give the money back
+                await client.from('citizens').update({ balance: parseFloat(me.balance) || 0 }).eq('citizen_id', me.citizen_id);
+                return;
+            }
+            await logTx(me.citizen_id, to, amt, 'TRANSFER');
+            alert(`Sent ${formatMoney(amt)} to ${to}.`);
+        }
+        document.getElementById('transfer-to').value = '';
+        document.getElementById('transfer-amount').value = '';
+        loadCitizenData();
+    }
+
+    // Admin approval of a queued (large) transfer
+    async function resolveTx(txId, status) {
+        const client = getClient();
+        if (!client) return;
+        if (status === 'APPROVED') {
+            const { data: tx } = await client.from('transactions').select('*').eq('id', txId).single();
+            if (!tx) { alert('Transaction not found.'); return; }
+            const sender = await getCitizen(client, tx.sender_id);
+            const receiver = await getCitizen(client, tx.receiver_id);
+            const amt = parseFloat(tx.amount);
+            if (!sender || !receiver || (parseFloat(sender.balance) || 0) < amt) {
+                alert(!receiver || !sender ? 'Cannot approve: sender or recipient no longer exists.' : `Cannot approve: ${tx.sender_id} has insufficient balance.`);
+                await client.from('transactions').update({ status: 'REJECTED' }).eq('id', txId);
+                loadAdminData();
+                return;
+            }
+            await client.from('citizens').update({ balance: r2(parseFloat(sender.balance) - amt) }).eq('citizen_id', tx.sender_id);
+            await client.from('citizens').update({ balance: r2(parseFloat(receiver.balance) + amt) }).eq('citizen_id', tx.receiver_id);
+        }
+        await client.from('transactions').update({ status }).eq('id', txId);
+        loadAdminData();
+    }
+
+    // ATM: takes the money OUT of the account, then logs it. Warns if the database changes the balance.
+    async function verifyAtmToken() {
+        const client = getClient();
+        if (!client) return;
+        const token = document.getElementById('admin-atm-token').value.trim();
+        if (!token) return;
+        const { data: atm } = await client.from('atm_tokens').select('*').eq('token_code', token).eq('status', 'PENDING').single();
+        if (!atm) { alert("Invalid or expired token."); return; }
+        const user = await getCitizen(client, atm.citizen_id);
+        const amt = parseFloat(atm.amount), bal = user ? (parseFloat(user.balance) || 0) : 0;
+        if (!user || !(amt > 0) || amt > bal) { alert("Cannot dispense: citizen not found or balance too low (" + formatMoney(bal) + ")."); return; }
+        const expected = r2(bal - amt);
+        const r = await client.from('citizens').update({ balance: expected }).eq('citizen_id', atm.citizen_id);
+        if (r.error) return;
+        await client.from('atm_tokens').update({ status: 'COMPLETED' }).eq('id', atm.id);
+        await logTx(atm.citizen_id, 'ATM', amt, 'ATM WITHDRAWAL');
+        const after = await getCitizen(client, atm.citizen_id);
+        if (after && Math.abs(parseFloat(after.balance) - expected) > 0.001) {
+            alert(`WARNING: balance is now ${after.balance} but should be ${expected}. A database trigger may be changing balances.`);
+        }
+        document.getElementById('admin-atm-token').value = '';
+        alert(`TOKEN VERIFIED! Dispense ${formatMoney(amt)} physical cash to ${atm.citizen_id}.`);
+        loadAdminData();
+    }
+
+    async function approveAccount(id) {
+        const client = getClient();
+        if (!client) return;
+        await client.from('citizens').update({ role: 'CITIZEN' }).eq('citizen_id', id);
+        alert(`Account ${id} verified and marked active.`);
+        loadAdminData();
+    }
+
+    async function declineAccount(id) {
+        if (!confirm(`Decline and delete the registration for ${id}?`)) return;
+        const client = getClient();
+        if (!client) return;
+        await client.from('citizens').delete().eq('citizen_id', id).eq('role', 'PENDING');
+        alert(`Registration ${id} declined.`);
+        loadAdminData();
+    }
+
+    async function adminBulk(amt, sign, type) {
+        const client = getClient();
+        const { data: cits } = await client.from('citizens').select('*').neq('role', 'PENDING');
+        let n = 0;
+        for (const c of (cits || [])) {
+            const bal = parseFloat(c.balance) || 0;
+            const change = sign > 0 ? amt : Math.min(bal, amt);
+            if (change <= 0) continue;
+            const r = await client.from('citizens').update({ balance: r2(bal + sign * change) }).eq('citizen_id', c.citizen_id);
+            if (r.error) return n;
+            await (sign > 0 ? logTx('TREASURY', c.citizen_id, change, type) : logTx(c.citizen_id, 'TREASURY', change, type));
+            n++;
+        }
+        return n;
+    }
+
+    async function handleMassPayout() {
+        if (!getClient()) return;
+        const amt = r2(parseFloat(document.getElementById('mass-payout-amt').value));
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+        const n = await adminBulk(amt, 1, 'ADMIN GIVE');
+        alert(`Distributed ${formatMoney(amt)} to ${n} citizens.`);
+        loadAdminData();
+    }
+
+    async function handleMassTax() {
+        if (!getClient()) return;
+        const amt = r2(parseFloat(document.getElementById('mass-tax-amt').value));
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+        const n = await adminBulk(amt, -1, 'TAX');
+        alert(`Collected up to ${formatMoney(amt)} tax from ${n} citizens.`);
+        loadAdminData();
+    }
+
+    async function handleTargetMoney(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const id = formatCitizenId(document.getElementById('target-id').value);
+        const action = document.getElementById('target-action').value;
+        const amt = r2(parseFloat(document.getElementById('target-amt').value));
+        if (!(amt > 0)) { alert("Please enter a valid amount greater than 0."); return; }
+        const user = await getCitizen(client, id);
+        if (!user) { alert("Citizen not found."); return; }
+        const bal = parseFloat(user.balance) || 0;
+        const give = action === 'SALARY';
+        const change = give ? amt : Math.min(bal, amt);
+        const r = await client.from('citizens').update({ balance: r2(give ? bal + change : bal - change) }).eq('citizen_id', id);
+        if (r.error) return;
+        if (change > 0) await (give ? logTx('TREASURY', id, change, action) : logTx(id, 'TREASURY', change, action));
+        alert(`Executed ${action} of ${formatMoney(change)} for ${id}`);
+        loadAdminData();
+    }
+
+    // Admins use their own money through the normal citizen screen
+    function switchAdminView() {
+        const sw = document.getElementById('nav-switch-btn');
+        if (document.getElementById('view-admin').classList.contains('active')) {
+            showView('view-citizen'); loadCitizenData(); sw.innerText = 'Admin Panel';
+        } else {
+            showView('view-admin'); loadAdminData(); sw.innerText = 'My Account';
+        }
+    }
+
+    async function saveTransferLimit(e) {
+        if (e) e.preventDefault();
+        const v = parseFloat(document.getElementById('transfer-limit').value);
+        if (!(v >= 0)) { alert('Please enter 0 or more.'); return; }
+        await getClient().from('bank_settings').update({ transfer_limit: r2(v) }).eq('id', 1);
+        alert('Transfer limit saved.');
+    }
+
+    // ---- full-screen popups: glitch notices, welcome briefing, changelog ----
+    function showOverlay(html) { document.getElementById('overlay-box').innerHTML = html; document.getElementById('overlay').classList.add('show'); }
+    function closeOverlay() { document.getElementById('overlay').classList.remove('show'); }
+
+    const CHANGELOG = [
+        { v: 'v2.5', d: 'October 2026', items: ['The casino is now its own app (casino.html) with roulette, blackjack and animated games.', 'Maintenance mode for the bank and the casino.', 'Guided tour that highlights each part of the bank.', 'Fixed: new registrations not showing for approval, debt overpayment, missing history for loans, debt and theft.', 'Cleaner look.'] },
+        { v: 'v2.3', d: 'October 2026', items: [
+            'Transfers are now instant (large ones wait for admin approval) and the recipient is checked first.',
+            'ATM withdrawals now take money out and appear in history.',
+            'Admin gives, taxes, salaries, weekly tax and insurance fees now show in transaction history.',
+            'New Decline button for registration requests.',
+            'Admins can open their own personal account from the top bar.',
+            'Glitch compensation notices, a welcome briefing, this changelog and a tab icon.'] },
+        { v: 'v2.2', d: 'October 2026', items: ['Weekly salaries and the automatic weekly cycle.', 'Insurance now charges weekly and reimburses theft.'] },
+        { v: 'v2.1', d: 'October 2026', items: ['Admin approval for new accounts.', 'Security and input-check fixes.'] }
+    ];
+
+    function showChangelog() {
+        showOverlay('<h2>What\'s New</h2>' + CHANGELOG.map(c =>
+            `<h3>${escapeHTML(c.v)} <small>${escapeHTML(c.d)}</small></h3><ul>${c.items.map(i => `<li>${escapeHTML(i)}</li>`).join('')}</ul>`).join('') +
+            '<button onclick="closeOverlay()">Close</button>');
+    }
+
+    async function handleGlitch(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const msg = document.getElementById('glitch-msg').value.trim();
+        const amt = r2(parseFloat(document.getElementById('glitch-amt').value));
+        const t = document.getElementById('glitch-targets').value.trim();
+        if (!msg || !(amt >= 0)) { alert('Enter a message and an amount of 0 or more.'); return; }
+        let ids;
+        if (!t || t.toUpperCase() === 'ALL') {
+            const { data } = await client.from('citizens').select('citizen_id').neq('role', 'PENDING');
+            ids = (data || []).map(c => c.citizen_id);
+        } else ids = t.split(',').map(s => formatCitizenId(s.trim())).filter(Boolean);
+        if (!ids.length) { alert('No citizens found.'); return; }
+        if (!confirm(`Send this notice${amt > 0 ? ' with ' + formatMoney(amt) : ''} to ${ids.length} citizen(s)? They will see it full-screen at next login.`)) return;
+        const { error } = await client.from('glitch_notices').insert(ids.map(id => ({ citizen_id: id, message: msg, amount: amt })));
+        if (error) { alert('Could not send notice: ' + error.message + ' (have you created the glitch_notices table?)'); return; }
+        alert(`Glitch notice sent to ${ids.length} citizen(s).`);
+        document.getElementById('glitch-msg').value = '';
+    }
+
+    async function showNextNotice() {
+        const { data: notes } = await getClient().from('glitch_notices').select('*').eq('citizen_id', currentUser.citizen_id).eq('claimed', false).order('id', { ascending: true }).limit(1);
+        if (!notes || !notes.length) return;
+        const n = notes[0];
+        showOverlay(`<h2>⚠️ We're sorry: a glitch affected the bank</h2>
+            <p style="margin: 12px 0;">${escapeHTML(n.message)}</p>
+            <p>${parseFloat(n.amount) > 0 ? `To make it right, we're giving you <strong>${formatMoney(n.amount)}</strong>.` : 'Thank you for your patience.'}</p>
+            <button onclick="claimNotice(${Number(n.id)})" class="success">${parseFloat(n.amount) > 0 ? 'Claim ' + formatMoney(n.amount) : 'Continue'}</button>`);
+    }
+
+    async function claimNotice(id) {
+        const client = getClient();
+        const { data: n } = await client.from('glitch_notices').select('*').eq('id', id).eq('claimed', false).single();
+        if (n) {
+            await client.from('glitch_notices').update({ claimed: true }).eq('id', id);   // mark first: can never pay twice
+            const amt = parseFloat(n.amount) || 0;
+            if (amt > 0) {
+                const u = await getCitizen(client, n.citizen_id);
+                await client.from('citizens').update({ balance: r2((parseFloat(u.balance) || 0) + amt) }).eq('citizen_id', n.citizen_id);
+                await logTx('TREASURY', n.citizen_id, amt, 'GLITCH REFUND');
+            }
+        }
+        closeOverlay();
+        await showNextNotice();
+        routeUserDashboard();
+    }
+
+    function setTheme(dark) { if (document.body.classList.contains('dark-mode') !== dark) toggleDarkMode(); }
+
+    function finishWelcome(key) { try { localStorage.setItem(key, '1'); } catch (e) {} closeOverlay(); startTour(); }
+
+    async function runLoginExtras() {
+        try {
+            await showNextNotice();
+            let seen = false;
+            const key = 'banania_welcome_' + currentUser.citizen_id;
+            try { seen = !!localStorage.getItem(key); } catch (e) {}
+            if (!seen && !document.getElementById('overlay').classList.contains('show')) showWelcome(key);
+        } catch (err) { console.error(err); }
+    }
+
+
+    // ==========================================
+    // 8. CASINO, VAULT, LONG WELCOME BRIEFING
+    // ==========================================
+    const GAME_DEFS = [
+        { id: 'coin', name: '🪙 Coin Flip', chance: 48, mult: 2 },
+        { id: 'dice', name: '🎲 Lucky Dice', chance: 16, mult: 5 },
+        { id: 'slots', name: '🎰 Jackpot Slots', chance: 5, mult: 15 }
+    ];
+
+    async function getSettings() {
+        const { data } = await getClient().from('bank_settings').select('*').eq('id', 1).single();
+        return data || {};
+    }
+
+    function casinoCfg(st) {
+        let saved = {};
+        try { saved = JSON.parse(st.casino_config || '{}'); } catch (e) {}
+        const cfg = { enabled: saved.enabled !== false, maxBet: saved.maxBet > 0 ? saved.maxBet : 100, games: {} };
+        GAME_DEFS.forEach(g => { cfg.games[g.id] = Object.assign({ chance: g.chance, mult: g.mult }, (saved.games || {})[g.id]); });
+        return cfg;
+    }
+
+    // The vault is the bank's own money. delta can be negative.
+    async function vaultAdd(delta) {
+        if (!delta) return;
+        const st = await getSettings();
+        await getClient().from('bank_settings').update({ vault_balance: r2((parseFloat(st.vault_balance) || 0) + delta) }).eq('id', 1);
+    }
+
+    async function vaultMove(dir) {
+        const amt = r2(parseFloat(prompt(dir === 'in' ? 'Amount to deposit into the vault from your account (Ɓ):' : 'Amount to withdraw from the vault to your account (Ɓ):')));
+        if (!(amt > 0)) return;
+        const client = getClient();
+        const me = await getCitizen(client, currentUser.citizen_id);
+        const st = await getSettings();
+        const vault = parseFloat(st.vault_balance) || 0, bal = parseFloat(me.balance) || 0;
+        if (dir === 'in' && amt > bal) { alert('You do not have enough in your account.'); return; }
+        if (dir === 'out' && amt > vault) { alert('The vault does not have that much.'); return; }
+        const sign = dir === 'in' ? -1 : 1;
+        const r = await client.from('citizens').update({ balance: r2(bal + sign * amt) }).eq('citizen_id', me.citizen_id);
+        if (r.error) return;
+        await vaultAdd(-sign * amt);
+        await (dir === 'in' ? logTx(me.citizen_id, 'VAULT', amt, 'VAULT DEPOSIT') : logTx('VAULT', me.citizen_id, amt, 'VAULT WITHDRAWAL'));
+        loadAdminData();
+    }
+
+    function fillAdminCasino(st) {
+        const cfg = casinoCfg(st);
+        GAME_DEFS.forEach(g => {
+            document.getElementById('odds-' + g.id + '-chance').value = cfg.games[g.id].chance;
+            document.getElementById('odds-' + g.id + '-mult').value = cfg.games[g.id].mult;
+        });
+        document.getElementById('odds-max').value = cfg.maxBet;
+        document.getElementById('odds-enabled').value = cfg.enabled ? '1' : '0';
+        document.getElementById('vault-balance').innerText = formatMoney(st.vault_balance || 0);
+    }
+
+    async function saveCasino(e) {
+        if (e) e.preventDefault();
+        const cfg = { enabled: document.getElementById('odds-enabled').value === '1', maxBet: parseFloat(document.getElementById('odds-max').value), games: {} };
+        for (const g of GAME_DEFS) {
+            const chance = parseFloat(document.getElementById('odds-' + g.id + '-chance').value);
+            const mult = parseFloat(document.getElementById('odds-' + g.id + '-mult').value);
+            if (!(chance >= 0 && chance <= 100) || !(mult >= 1)) { alert('Win chance must be 0-100 and payout at least 1x.'); return; }
+            cfg.games[g.id] = { chance, mult };
+        }
+        if (!(cfg.maxBet > 0)) { alert('Enter a max bet above 0.'); return; }
+        await getClient().from('bank_settings').update({ casino_config: JSON.stringify(cfg) }).eq('id', 1);
+        alert('Casino settings saved.');
+    }
+
+
+
+
+    const WELCOME_PAGES = [
+        ['Welcome to Banania National Bank 🍌', '<p>This is the official bank of the realm. Your money is counted in <strong>Bananos (Ɓ)</strong> and <strong>Peels (c)</strong>, where 1 Banano = 100 Peels.</p><p>This short tour explains everything the bank can do. It takes about a minute.</p>'],
+        ['Sending money', '<ul><li>Enter another citizen\'s code (like 002) and an amount.</li><li>Small transfers arrive instantly.</li><li>Large transfers wait for an admin to approve them. The limit is set by the admins.</li><li>Everything you send or receive appears in your history. You can export it as a CSV.</li></ul>'],
+        ['Cash and the ATM', '<ul><li>Request an ATM token for the amount you want in physical cash.</li><li>Read the 6-digit token to an admin in real life.</li><li>The admin verifies it, the money leaves your account, and you get your cash.</li></ul>'],
+        ['Salaries, tax and insurance', '<ul><li>Admins can give you a <strong>weekly salary</strong>, paid automatically.</li><li>A <strong>weekly tax</strong> is collected from your balance by the treasury.</li><li><strong>Insurance</strong> has a small weekly fee. If you are robbed, the treasury pays you back. If you cannot afford the fee, the policy lapses.</li></ul>'],
+        ['Loans, debt and support', '<ul><li>Apply for a loan and choose how many weeks to repay it. Longer terms cost more interest.</li><li>Use <strong>Pay Debt</strong> any time to reduce what you owe.</li><li>Open a <strong>support ticket</strong> if something looks wrong.</li><li>If your account is suspended, you can appeal to the admins through live chat.</li></ul>'],
+        ['The casino 🎰', '<p>The Banania Casino is separate from the bank. Connect your account first, then play Coin Flip, Lucky Dice or Jackpot Slots. The admins set the odds, and you can see them before every bet.</p><p><strong>You can lose everything you bet.</strong> Only gamble what you are happy to lose.</p>'],
+        ['The Royal Vault 🏦', '<p>The bank keeps its own money in the vault. It collects weekly taxes, insurance fees and casino losses, and pays out casino wins. Admins manage it.</p>'],
+        ['Choose your look', '<p>You can change this any time with the button at the top.</p><button onclick="setTheme(false)" class="secondary">☀️ Light</button> <button onclick="setTheme(true)" class="secondary">🌙 Dark</button>']
+    ];
+
+    function showWelcome(key, i) {
+        i = i || 0;
+        const [title, body] = WELCOME_PAGES[i], last = i === WELCOME_PAGES.length - 1;
+        showOverlay(`<p style="font-size:0.8rem;color:var(--subtext);">Step ${i + 1} of ${WELCOME_PAGES.length}</p><h2>${title}</h2>${body}
+            <div style="margin-top: 14px;">
+            ${i > 0 ? `<button onclick="showWelcome('${key}', ${i - 1})" class="secondary">Back</button>` : ''}
+            ${last ? `<button onclick="finishWelcome('${key}')" class="accent">Get started</button>` : `<button onclick="showWelcome('${key}', ${i + 1})" class="accent">Next</button>`}
+            </div>`);
+    }
+
+
+    // ==========================================
+    // 9. MAINTENANCE MODE + GUIDED TOUR
+    // ==========================================
+    async function setMaint(field) {
+        const st = await getSettings();
+        const msg = document.getElementById('maint-msg').value.trim();
+        await getClient().from('bank_settings').update({ [field]: !st[field], maintenance_msg: msg || st.maintenance_msg || null }).eq('id', 1);
+        loadAdminData();
+    }
+    function fillMaint(st) {
+        document.getElementById('maint-bank-btn').innerText = st.bank_maintenance ? '✅ Reopen the Bank' : '🛠️ Close the Bank';
+        document.getElementById('maint-casino-btn').innerText = st.casino_maintenance ? '✅ Reopen the Casino' : '🛠️ Close the Casino';
+        document.getElementById('maint-msg').value = st.maintenance_msg || '';
+    }
+
+    async function payDebtPrompt() {
+        const client = getClient();
+        if (!client) return;
+        const me = await getCitizen(client, currentUser.citizen_id);
+        const debt = parseFloat(me.debt) || 0;
+        if (!(debt > 0)) { alert('You have no debt to pay.'); return; }
+        const amt = r2(Math.min(parseFloat(prompt(`Enter amount to pay towards debt (Current Debt: ${formatMoney(debt)}):`)), debt));
+        if (!(amt > 0)) return;
+        if (amt > (parseFloat(me.balance) || 0)) { alert('Insufficient balance.'); return; }
+        const r = await client.from('citizens').update({ balance: r2(parseFloat(me.balance) - amt), debt: r2(debt - amt) }).eq('citizen_id', me.citizen_id);
+        if (r.error) return;
+        await logTx(me.citizen_id, 'TREASURY', amt, 'DEBT PAYMENT');
+        await vaultAdd(amt);
+        loadCitizenData();
+    }
+
+    const CIT_TOUR = [
+        ['Treasury Balance', 'This is your money. 1 Banano (Ɓ) = 100 Peels (c).'],
+        ['Theft Protection', 'Insurance costs a small weekly fee and repays you if you are robbed.'],
+        ['Transfer Bananos', 'Send money to another citizen using their code. Small transfers are instant.'],
+        ['Sovereign Loan', 'Borrow money and repay it over 1 to 8 weeks. Longer loans cost more.'],
+        ['Physical ATM', 'Make a token, then read it to an admin to get physical cash.'],
+        ['Support Tickets', 'Something wrong? Ask the admins here.'],
+        ['My Transactions', 'Everything that happens to your money shows up here. You can export it.']];
+    const ADMIN_TOUR = [
+        ['Pending Citizen Clearance', 'New citizens appear here. Approve or Decline them.'],
+        ['Mass Economic', 'Pay or tax every citizen at once.'],
+        ['Weekly Salaries', 'Set weekly salaries and turn on the automatic weekly cycle.'],
+        ['Maintenance Mode', 'Close the bank or the casino. Admins can always get in.'],
+        ['Casino Odds', 'Set casino odds and manage the bank vault.'],
+        ['Global Treasury Settings', 'Weekly tax rate and insurance fee.']];
+    let tourEl = null;
+    function startTour() { tourStep(0, 1); }
+    function endTour() { if (tourEl) tourEl.classList.remove('tour-hl'); tourEl = null; document.getElementById('tour-bar').style.display = 'none'; }
+    function tourStep(i, dir) {
+        if (tourEl) tourEl.classList.remove('tour-hl');
+        const steps = document.getElementById('view-admin').classList.contains('active') ? ADMIN_TOUR : CIT_TOUR;
+        let card = null;
+        while (i >= 0 && i < steps.length) {
+            const h = [...document.querySelectorAll('.view.active .card h3')].find(x => x.textContent.includes(steps[i][0]));
+            if (h) { card = h.closest('.card'); break; }
+            i += dir;
+        }
+        if (!card) { endTour(); return; }
+        tourEl = card; card.classList.add('tour-hl'); card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const bar = document.getElementById('tour-bar');
+        bar.style.display = 'block';
+        bar.innerHTML = `<p style="font-size:0.75rem;color:var(--subtext);">Tour ${i + 1} of ${steps.length}</p><p style="margin:6px 0 10px;">${escapeHTML(steps[i][1])}</p>
+            <button onclick="tourStep(${i - 1}, -1)" class="secondary" ${i === 0 ? 'disabled' : ''}>Back</button>
+            ${i === steps.length - 1 ? '<button onclick="endTour()" class="accent">Finish</button>' : `<button onclick="tourStep(${i + 1}, 1)" class="accent">Next</button>`}
+            <button onclick="endTour()" class="secondary">Skip</button>`;
+    }
+
+    // ==========================================
+    // 5. BAN CHAT & APPEAL SYSTEM
+    // ==========================================
+    async function loadBanChatMessages() {
+        const client = getClient();
+        if (!client) return;
+        const { data: msgs } = await client.from('ban_appeals').select('*').eq('citizen_id', currentUser.citizen_id).order('created_at', { ascending: true });
+        const box = document.getElementById('ban-chat-box');
+        box.innerHTML = '';
+        (msgs || []).forEach(m => {
+            box.innerHTML += `<div class="chat-msg ${escapeHTML(m.sender_role).toLowerCase()}"><strong>${escapeHTML(m.sender_role)}:</strong> ${escapeHTML(m.message)}</div>`;
+        });
+    }
+
+    async function sendBanAppealMessage(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const input = document.getElementById('ban-chat-input');
+        await client.from('ban_appeals').insert([{
+            citizen_id: currentUser.citizen_id,
+            sender_role: 'CITIZEN',
+            message: input.value
+        }]);
+        input.value = '';
+        loadBanChatMessages();
+    }
+
+    async function loadAdminBanChat() {
+        const client = getClient();
+        if (!client) return;
+        const citId = document.getElementById('admin-banned-chat-select').value;
+        if (!citId) return;
+        const { data: msgs } = await client.from('ban_appeals').select('*').eq('citizen_id', citId).order('created_at', { ascending: true });
+        const box = document.getElementById('admin-ban-chat-box');
+        box.innerHTML = '';
+        (msgs || []).forEach(m => {
+            box.innerHTML += `<div class="chat-msg ${escapeHTML(m.sender_role).toLowerCase()}"><strong>${escapeHTML(m.sender_role)}:</strong> ${escapeHTML(m.message)}</div>`;
+        });
+    }
+
+    async function sendAdminBanMessage(e) {
+        if (e) e.preventDefault();
+        const client = getClient();
+        if (!client) return;
+        const citId = document.getElementById('admin-banned-chat-select').value;
+        const input = document.getElementById('admin-ban-chat-input');
+        if (!citId) return;
+
+        await client.from('ban_appeals').insert([{
+            citizen_id: citId,
+            sender_role: 'ADMIN',
+            message: input.value
+        }]);
+        input.value = '';
+        loadAdminBanChat();
+    }
+</script>
+</body>
+</html>

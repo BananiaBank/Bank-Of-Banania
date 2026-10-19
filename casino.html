@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banania Casino</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%237c3aed'/%3E%3Ctext x='32' y='46' font-size='38' text-anchor='middle'%3E%F0%9F%8E%B0%3C/text%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#0a0612;--card:#160d26;--line:#3b2a5e;--gold:#fbbf24;--text:#f5f3ff;--sub:#a78bfa}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:radial-gradient(circle at top,#26124a,#0a0612 60%);color:var(--text);min-height:100vh;padding:16px}
+.wrap{max-width:980px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+h1{color:var(--gold);letter-spacing:1px} h3{color:var(--gold);margin-bottom:8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+button{background:var(--gold);color:#000;border:0;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer;transition:transform .1s;margin:4px 4px 0 0}
+button:hover{transform:translateY(-1px)} button:active{transform:scale(.96)} button:disabled{opacity:.4;cursor:not-allowed}
+button.alt{background:#2a1b47;color:var(--text);border:1px solid var(--line)}
+input,select{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0d0719;color:var(--text);font-size:1rem;margin-top:4px}
+label{font-size:.85rem;color:var(--sub);display:block;margin-top:8px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tabs button{background:#2a1b47;color:var(--text)}.tabs button.on{background:var(--gold);color:#000}
+.stats{display:flex;gap:18px;font-size:.9rem;color:var(--sub);flex-wrap:wrap}.stats b{color:var(--text);font-size:1.15rem}
+.reels{display:flex;justify-content:center;gap:10px;margin:12px 0}
+.reel{font-size:3rem;width:88px;height:96px;display:flex;align-items:center;justify-content:center;background:#0d0719;border:2px solid var(--gold);border-radius:12px}
+.spinning{animation:blur .12s infinite}
+@keyframes blur{50%{transform:translateY(6px);filter:blur(2px)}}
+@keyframes pop{0%{transform:scale(.5) translateY(-20px);opacity:0}100%{transform:none;opacity:1}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 rgba(251,191,36,0)}50%{box-shadow:0 0 45px rgba(251,191,36,.95)}}
+@keyframes flip{to{transform:rotateY(1800deg)}}
+.win{animation:glow .6s 3}
+.msg{text-align:center;font-size:1.2rem;font-weight:700;min-height:32px;margin-top:10px;border-radius:10px;padding:6px}
+.coin,.die{font-size:4.5rem;text-align:center;margin:10px 0}.die{font-size:5rem}
+.wheel-wrap{position:relative;width:280px;margin:12px auto}
+.wheel{width:280px;height:280px;border-radius:50%;border:6px solid var(--gold);transition:transform 4.6s cubic-bezier(.1,.6,.1,1)}
+.pointer{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:1.7rem;z-index:2;color:var(--gold)}
+.hub{position:absolute;inset:34%;border-radius:50%;background:#0d0719;border:3px solid var(--gold);display:flex;align-items:center;justify-content:center;font-size:1.9rem;font-weight:800}
+.num{display:inline-block;width:30px;height:30px;line-height:30px;border-radius:50%;text-align:center;font-weight:700;margin:2px;font-size:.8rem}
+.r{background:#dc2626}.b{background:#111;border:1px solid #444}.g{background:#16a34a}
+.hand{min-height:90px}.pc{display:inline-flex;width:54px;height:78px;background:#fff;color:#111;border-radius:8px;align-items:center;justify-content:center;font-weight:800;margin:3px;animation:pop .35s}
+.pc.red{color:#dc2626}.pc.back{background:repeating-linear-gradient(45deg,#7c3aed,#7c3aed 6px,#5b21b6 6px,#5b21b6 12px);color:transparent}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.hidden{display:none}
+</style></head><body><div class="wrap">
+<div id="login" class="card" style="max-width:420px;margin:60px auto">
+ <h1>🎰 Banania Casino</h1><p style="color:var(--sub);margin:6px 0">Sign in with your bank account to play.</p>
+ <label>Citizen Code (e.g. 004)</label><input id="lid"><label>Bank Password</label><input id="lpw" type="password" onkeydown="if(event.key==='Enter')login()">
+ <button onclick="login()">Enter the Casino</button> <a href="index.html" style="color:var(--sub)">Back to Bank</a>
+</div>
+<div id="closed" class="card hidden" style="max-width:480px;margin:60px auto;text-align:center"><h1>🛠️ Closed</h1><p id="closedmsg" style="margin:10px 0"></p><a href="index.html" style="color:var(--sub)">Back to Bank</a></div>
+<div id="app" class="hidden">
+ <header><h1>🎰 Banania Casino</h1><div class="stats"><div>Balance<br><b id="bal"></b></div><div>This session<br><b id="sess">Ɓ0</b></div><div><a href="index.html" style="color:var(--sub)">← Bank</a></div></div></header>
+ <div class="tabs" id="tabs"></div>
+
+ <div id="t-roulette" class="card"><h3>🎡 Roulette</h3>
+  <div class="wheel-wrap"><div class="pointer">▼</div><div id="wheel" class="wheel"></div><div class="hub" id="hub">?</div></div>
+  <div class="grid"><div><label>Bet on</label><select id="rbet" onchange="$('rnumwrap').classList.toggle('hidden',this.value!=='NUM')">
+   <option value="RED">Red (pays 2×)</option><option value="BLACK">Black (2×)</option><option value="ODD">Odd (2×)</option><option value="EVEN">Even (2×)</option>
+   <option value="LOW">1-18 (2×)</option><option value="HIGH">19-36 (2×)</option><option value="D1">1st dozen 1-12 (3×)</option><option value="D2">2nd dozen 13-24 (3×)</option><option value="D3">3rd dozen 25-36 (3×)</option><option value="NUM">Single number (36×)</option></select>
+   <div id="rnumwrap" class="hidden"><label>Number 0-36</label><input id="rnum" type="number" min="0" max="36" value="7"></div></div>
+   <div><label>Bet (Ɓ)</label><input id="b-roulette" type="number" step="0.01" min="0.01" value="5"></div></div>
+  <button id="rgo" onclick="playRoulette()">Spin the Wheel</button><div id="rhist"></div><div class="msg" id="m-roulette"></div></div>
+
+ <div id="t-blackjack" class="card hidden"><h3>🃏 Blackjack</h3><p style="color:var(--sub);font-size:.85rem">Blackjack pays 3:2. Dealer stands on 17.</p>
+  <label>Dealer <span id="dtot"></span></label><div class="hand" id="dhand"></div><label>You <span id="ptot"></span></label><div class="hand" id="phand"></div>
+  <label>Bet (Ɓ)</label><input id="b-blackjack" type="number" step="0.01" min="0.01" value="5">
+  <button id="bdeal" onclick="bjDeal()">Deal</button><button id="bhit" class="alt" onclick="bjHit()" disabled>Hit</button><button id="bstand" class="alt" onclick="bjStand()" disabled>Stand</button><button id="bdbl" class="alt" onclick="bjDouble()" disabled>Double</button>
+  <div class="msg" id="m-blackjack"></div></div>
+
+ <div id="t-slots" class="card hidden"><h3>🎰 Jackpot Slots</h3><p id="o-slots" style="color:var(--sub);font-size:.85rem"></p>
+  <div class="reels"><div class="reel" id="r1">🍌</div><div class="reel" id="r2">🍌</div><div class="reel" id="r3">🍌</div></div>
+  <label>Bet (Ɓ)</label><input id="b-slots" type="number" step="0.01" min="0.01" value="5"><button onclick="playSlots()">Spin</button><div class="msg" id="m-slots"></div></div>
+
+ <div id="t-coin" class="card hidden"><h3>🪙 Coin Flip</h3><p id="o-coin" style="color:var(--sub);font-size:.85rem"></p>
+  <div class="coin" id="coin">🪙</div><div class="grid"><div><label>Your call</label><select id="cpick"><option>HEADS</option><option>TAILS</option></select></div><div><label>Bet (Ɓ)</label><input id="b-coin" type="number" step="0.01" min="0.01" value="5"></div></div>
+  <button onclick="playCoin()">Flip</button><div class="msg" id="m-coin"></div></div>
+
+ <div id="t-dice" class="card hidden"><h3>🎲 Lucky Dice</h3><p id="o-dice" style="color:var(--sub);font-size:.85rem"></p>
+  <div class="die" id="die">🎲</div><div class="grid"><div><label>Your number</label><select id="dpick"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option></select></div><div><label>Bet (Ɓ)</label><input id="b-dice" type="number" step="0.01" min="0.01" value="5"></div></div>
+  <button onclick="playDice()">Roll</button><div class="msg" id="m-dice"></div></div>
+</div></div>
+<script>
+const sb = supabase.createClient("https://rqxrpksjgxzcamkwvzyn.supabase.co", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJxeHJwa3NqZ3h6Y2Fta3d2enluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3ODY4MTgsImV4cCI6MjEwNjM2MjgxOH0.a4su8LpHd6v1E-8j0jABfHA-9vOOldaUQBexzbPotOE");
+const $ = id => document.getElementById(id), r2 = n => Math.round(n * 100) / 100;
+const fm = n => 'Ɓ' + (Math.round((parseFloat(n) || 0) * 100) / 100).toFixed(2).replace(/\.00$/, '');
+const rnd = () => crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
+const pick = a => a[Math.floor(rnd() * a.length)];
+const DEF = { coin: { chance: 48, mult: 2 }, dice: { chance: 16, mult: 5 }, slots: { chance: 5, mult: 15 } };
+let me = null, cfg = null, session = 0, busy = false;
+
+async function settings() { const { data } = await sb.from('bank_settings').select('*').eq('id', 1).single(); return data || {}; }
+function config(st) {
+    let s = {}; try { s = JSON.parse(st.casino_config || '{}'); } catch (e) {}
+    const g = {}; for (const k in DEF) g[k] = Object.assign({}, DEF[k], (s.games || {})[k]);
+    return { enabled: s.enabled !== false, maxBet: s.maxBet > 0 ? s.maxBet : 100, games: g };
+}
+const isClosed = (st, c) => !c.enabled || ((st.casino_maintenance || st.bank_maintenance) && me.role !== 'ADMIN');
+function showClosed(st) { $('login').classList.add('hidden'); $('app').classList.add('hidden'); $('closed').classList.remove('hidden'); $('closedmsg').textContent = st.maintenance_msg || 'The casino is closed right now. Please come back soon!'; }
+
+async function login() {
+    const id = 'BN-2026-' + $('lid').value.replace(/\D/g, '').padStart(3, '0');
+    const { data: u } = await sb.from('citizens').select('*').eq('citizen_id', id).maybeSingle();
+    if (!u || u.password !== $('lpw').value.trim()) { alert('Wrong citizen code or password.'); return; }
+    if (u.role === 'PENDING' || u.is_banned) { alert('This account cannot use the casino.'); return; }
+    me = u; const st = await settings(); cfg = config(st);
+    if (isClosed(st, cfg)) { showClosed(st); return; }
+    $('login').classList.add('hidden'); $('app').classList.remove('hidden');
+    for (const k in DEF) $('o-' + k).textContent = `Win chance ${cfg.games[k].chance}% · pays ${cfg.games[k].mult}× · max bet ${fm(cfg.maxBet)}`;
+    const T = [['roulette', '🎡 Roulette'], ['blackjack', '🃏 Blackjack'], ['slots', '🎰 Slots'], ['coin', '🪙 Coin'], ['dice', '🎲 Dice']];
+    $('tabs').innerHTML = T.map(t => `<button data-t="${t[0]}" onclick="tab('${t[0]}')" class="${t[0] === 'roulette' ? 'on' : ''}">${t[1]}</button>`).join('');
+    buildWheel(); showBal();
+}
+function tab(t) { document.querySelectorAll('[id^=t-]').forEach(e => e.classList.add('hidden')); $('t-' + t).classList.remove('hidden'); document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t)); }
+async function getMe() { const { data } = await sb.from('citizens').select('*').eq('citizen_id', me.citizen_id).single(); me = data; return data; }
+function showBal() { $('bal').textContent = fm(me.balance); $('sess').textContent = (session >= 0 ? '+' : '-') + fm(Math.abs(session)); $('sess').style.color = session >= 0 ? '#4ade80' : '#f87171'; }
+
+// money: delta < 0 = player pays the casino (vault gains); delta > 0 = casino pays the player
+async function move(delta, type) {
+    const u = await getMe();
+    await sb.from('citizens').update({ balance: r2(parseFloat(u.balance) + delta) }).eq('citizen_id', u.citizen_id);
+    const st = await settings();
+    await sb.from('bank_settings').update({ vault_balance: r2((parseFloat(st.vault_balance) || 0) - delta) }).eq('id', 1);
+    await sb.from('transactions').insert([delta < 0 ? { sender_id: u.citizen_id, receiver_id: 'CASINO', amount: -delta, type, status: 'APPROVED' } : { sender_id: 'CASINO', receiver_id: u.citizen_id, amount: delta, type, status: 'APPROVED' }]);
+    await getMe(); showBal();
+}
+// takes the stake up front, so closing the page can never dodge a loss
+async function begin(bet) {
+    bet = r2(bet); const st = await settings(); const c = config(st);
+    if (isClosed(st, c)) { showClosed(st); return false; }
+    cfg = c;
+    if (!(bet > 0) || bet > c.maxBet) { alert('Bets must be above 0 and at most ' + fm(c.maxBet)); return false; }
+    const u = await getMe();
+    if (bet > (parseFloat(u.balance) || 0)) { alert('Not enough money in your account.'); return false; }
+    await move(-bet, 'CASINO BET'); session = r2(session - bet); showBal(); return true;
+}
+async function pay(amount) { if (amount > 0) { await move(amount, 'CASINO WIN'); session = r2(session + amount); showBal(); } }
+function out(id, win, text) { const e = $(id); e.textContent = text; e.className = 'msg' + (win ? ' win' : ''); e.style.background = win ? 'rgba(74,222,128,.15)' : 'rgba(248,113,113,.1)'; }
+function spin(id, vals, final, ms) { return new Promise(res => { const el = $(id); el.classList.add('spinning'); const t = setInterval(() => el.textContent = pick(vals), 70); setTimeout(() => { clearInterval(t); el.classList.remove('spinning'); el.textContent = final; res(); }, ms); }); }
+
+// ---- slots / coin / dice (odds set by the admin) ----
+async function playSlots() {
+    if (busy) return; const bet = parseFloat($('b-slots').value); if (!await begin(bet)) return; busy = true; $('m-slots').textContent = '';
+    const g = cfg.games.slots, win = rnd() * 100 < g.chance, S = ['🍌', '🍒', '🍋', '🔔', '⭐', '7️⃣'];
+    let f; if (win) { const s = pick(S); f = [s, s, s]; } else do { f = [pick(S), pick(S), pick(S)]; } while (f[0] === f[1] && f[1] === f[2]);
+    await Promise.all(f.map((x, i) => spin('r' + (i + 1), S, x, 900 + i * 650)));
+    await pay(win ? r2(bet * g.mult) : 0); out('m-slots', win, win ? `🎉 JACKPOT! You won ${fm(bet * g.mult)}!` : '💸 No match. Spin again!'); busy = false;
+}
+async function playCoin() {
+    if (busy) return; const bet = parseFloat($('b-coin').value); if (!await begin(bet)) return; busy = true; $('m-coin').textContent = '';
+    const g = cfg.games.coin, win = rnd() * 100 < g.chance, call = $('cpick').value, face = win ? call : (call === 'HEADS' ? 'TAILS' : 'HEADS');
+    const c = $('coin'); c.style.animation = 'none'; c.offsetWidth; c.style.animation = 'flip 1.4s ease-out';
+    await new Promise(r => setTimeout(r, 1450)); c.textContent = face === 'HEADS' ? '👑' : '🌙';
+    await pay(win ? r2(bet * g.mult) : 0); out('m-coin', win, win ? `🎉 ${face}! You won ${fm(bet * g.mult)}!` : `💸 It was ${face}. You lose.`); busy = false;
+}
+async function playDice() {
+    if (busy) return; const bet = parseFloat($('b-dice').value); if (!await begin(bet)) return; busy = true; $('m-dice').textContent = '';
+    const g = cfg.games.dice, win = rnd() * 100 < g.chance, call = parseInt($('dpick').value), F = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+    let n = call; if (!win) do { n = 1 + Math.floor(rnd() * 6); } while (n === call);
+    await spin('die', F, F[n - 1], 1600);
+    await pay(win ? r2(bet * g.mult) : 0); out('m-dice', win, win ? `🎉 Rolled ${n}! You won ${fm(bet * g.mult)}!` : `💸 Rolled ${n}. You picked ${call}.`); busy = false;
+}
+
+// ---- roulette (European wheel, real odds) ----
+const ORDER = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
+const RED = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+const col = n => n === 0 ? 'g' : RED.includes(n) ? 'r' : 'b';
+let wheelRot = 0;
+function buildWheel() {
+    const seg = 360 / 37, hex = { g: '#16a34a', r: '#dc2626', b: '#111' };
+    $('wheel').style.background = 'conic-gradient(' + ORDER.map((n, i) => `${hex[col(n)]} ${i * seg}deg ${(i + 1) * seg}deg`).join(',') + ')';
+}
+function rWins(bet, n, pickNum) {
+    if (bet === 'NUM') return n === pickNum ? 36 : 0;
+    if (n === 0) return 0;
+    const t = { RED: RED.includes(n), BLACK: !RED.includes(n), ODD: n % 2 === 1, EVEN: n % 2 === 0, LOW: n <= 18, HIGH: n >= 19 };
+    if (bet in t) return t[bet] ? 2 : 0;
+    return { D1: n <= 12, D2: n > 12 && n <= 24, D3: n > 24 }[bet] ? 3 : 0;
+}
+async function playRoulette() {
+    if (busy) return; const bet = parseFloat($('b-roulette').value), kind = $('rbet').value, pn = parseInt($('rnum').value);
+    if (kind === 'NUM' && !(pn >= 0 && pn <= 36)) { alert('Pick a number from 0 to 36.'); return; }
+    if (!await begin(bet)) return; busy = true; $('rgo').disabled = true; $('m-roulette').textContent = ''; $('hub').textContent = '…';
+    const n = Math.floor(rnd() * 37), i = ORDER.indexOf(n), seg = 360 / 37;
+    wheelRot = wheelRot - (wheelRot % 360) + 360 * 6 + (360 - (i + 0.5) * seg);
+    $('wheel').style.transform = `rotate(${wheelRot}deg)`;
+    await new Promise(r => setTimeout(r, 4700));
+    $('hub').textContent = n; $('hub').style.color = n === 0 ? '#4ade80' : RED.includes(n) ? '#f87171' : '#fff';
+    $('rhist').innerHTML = `<span class="num ${col(n)}">${n}</span>` + $('rhist').innerHTML.split('</span>').slice(0, 11).join('</span>');
+    const mult = rWins(kind, n, pn); await pay(r2(bet * mult));
+    out('m-roulette', mult > 0, mult > 0 ? `🎉 ${n}! You won ${fm(bet * mult)}!` : `💸 ${n}. House wins.`); busy = false; $('rgo').disabled = false;
+}
+
+// ---- blackjack ----
+let bj = null;
+const RK = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'], SU = ['♠','♥','♦','♣'];
+function newDeck() { const d = []; for (const s of SU) for (const r of RK) d.push({ r, s }); for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; } return d; }
+function total(h) { let t = 0, a = 0; for (const c of h) { if (c.r === 'A') { t += 11; a++; } else t += ('JQK'.includes(c.r) || c.r === '10') ? 10 : parseInt(c.r); } while (t > 21 && a > 0) { t -= 10; a--; } return t; }
+const cardHtml = c => `<span class="pc ${c.s === '♥' || c.s === '♦' ? 'red' : ''}">${c.r}${c.s}</span>`;
+function bjDraw(hideHole) {
+    $('phand').innerHTML = bj.p.map(cardHtml).join(''); $('ptot').textContent = '(' + total(bj.p) + ')';
+    $('dhand').innerHTML = bj.d.map((c, i) => hideHole && i === 1 ? '<span class="pc back">?</span>' : cardHtml(c)).join(''); $('dtot').textContent = hideHole ? '' : '(' + total(bj.d) + ')';
+}
+function bjButtons(on) { $('bdeal').disabled = on; $('bhit').disabled = !on; $('bstand').disabled = !on; $('bdbl').disabled = !(on && bj && bj.p.length === 2); }
+async function bjDeal() {
+    if (busy) return; const bet = parseFloat($('b-blackjack').value); if (!await begin(bet)) return; busy = true;
+    $('m-blackjack').textContent = ''; $('m-blackjack').className = 'msg'; $('m-blackjack').style.background = '';
+    const deck = newDeck(); bj = { deck, p: [deck.pop(), deck.pop()], d: [deck.pop(), deck.pop()], bet: r2(bet) };
+    bjDraw(true); bjButtons(true);
+    if (total(bj.p) === 21) await bjFinish();
+}
+function bjHit() { bj.p.push(bj.deck.pop()); bjDraw(true); bjButtons(true); if (total(bj.p) >= 21) bjFinish(); }
+function bjStand() { bjFinish(); }
+async function bjDouble() {
+    const u = await getMe(); if (bj.bet > parseFloat(u.balance)) { alert('Not enough money to double.'); return; }
+    await move(-bj.bet, 'CASINO BET'); session = r2(session - bj.bet); bj.stake = bj.bet * 2; bj.p.push(bj.deck.pop()); bjDraw(true); await bjFinish();
+}
+async function bjFinish() {
+    bjButtons(false); $('bdeal').disabled = true;
+    const stake = bj.stake || bj.bet, pt = total(bj.p), natural = bj.p.length === 2 && pt === 21 && !bj.stake;
+    if (pt <= 21) while (total(bj.d) < 17) { bj.d.push(bj.deck.pop()); bjDraw(false); await new Promise(r => setTimeout(r, 600)); }
+    bjDraw(false); const dt = total(bj.d); let ret = 0, text;
+    if (pt > 21) text = '💥 Bust! You lose.';
+    else if (natural && !(dt === 21 && bj.d.length === 2)) { ret = stake * 2.5; text = `🃏 BLACKJACK! You won ${fm(stake * 1.5)}!`; }
+    else if (dt > 21 || pt > dt) { ret = stake * 2; text = `🎉 You win ${fm(stake)}!`; }
+    else if (pt === dt) { ret = stake; text = '🤝 Push. Your bet is returned.'; }
+    else text = '💸 Dealer wins.';
+    await pay(r2(ret)); out('m-blackjack', ret > stake, text); bj = null; busy = false; $('bdeal').disabled = false; bjButtons(false); $('bdeal').disabled = false;
+}
+</script></body></html>
